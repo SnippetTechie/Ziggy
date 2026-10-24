@@ -1,8 +1,11 @@
 # Ziggy — API & Security Specification
 
 **Document:** 05 — API & Security Specification  
-**Version:** 1.0  
-**Status:** Proposed for MVP implementation
+**Version:** 1.1
+
+**Status:** Corrected MVP contract — **proposed; no API routes, authentication, or database exist yet**
+
+> **Scope correction.** Ziggy is an Online Inventory and Stock Management System (PRD v1.1). Shop, cart, checkout, customer-order, and shopper-account endpoints are **superseded and removed**. Purchase orders, goods receipts, sales documents, transfers, valuation, uploads, and intelligence endpoints are **deferred reference**, not prerequisites for the college prototype. The MVP contract is §3–§6 and §10; the permissions matrix lives in `TEAM_HANDOFF.md` §4.
 
 ## 1. Objectives
 
@@ -45,7 +48,7 @@ Business rules must reside in server-side services, not only in frontend compone
 - Zod for request validation.
 - Neon PostgreSQL for persistence.
 - A typed database access layer such as Drizzle ORM.
-- Shared domain services for inventory, purchasing, valuation, and authorization.
+- Shared domain services for the catalogue, inventory (stock in/out), reporting, and authorization.
 
 Avoid calling the database directly from browser components.
 
@@ -53,16 +56,18 @@ Avoid calling the database directly from browser components.
 
 ### 3.1 Sign-in
 
-Use Clerk with Google OAuth for the initial release.
+Use Clerk with Google OAuth for the initial release. *(Planned — Clerk is not installed or connected yet.)*
 
 The authentication flow is:
 
-1. The user signs in through Clerk.
-2. Clerk establishes the authenticated session.
-3. Ziggy validates the session server-side.
-4. The application resolves the internal user record.
-5. The user selects or enters an authorized workspace.
-6. The backend verifies workspace membership before returning business data.
+1. The user opens `/sign-in`, which shows **Login as: User | Staff | Admin** (User selected initially) above Clerk's Google sign-in. The selection becomes `?as=user|staff|admin`.
+2. The user signs in through Clerk; Clerk establishes the authenticated session.
+3. Clerk redirects to the server route `/auth/continue?as=…`.
+4. Ziggy validates the session server-side and resolves (or creates) the internal `users` row. A new row has **no membership**.
+5. Ziggy loads the user's `workspace_members` row and requires `status = ACTIVE`.
+6. Ziggy chooses the landing route (§4.4) and redirects. The backend verifies membership again on every later request.
+
+The "Login as" choice only communicates a *requested destination*. It never creates or modifies a role, and nothing is granted automatically on sign-up.
 
 ### 3.2 Internal user mapping
 
@@ -82,43 +87,49 @@ The backend must not trust a client-supplied user ID to establish identity.
 
 ### 4.1 Workspace-based authorization
 
-Every business request must be scoped to an authorized workspace.
+Every business request is scoped to the caller's authorized workspace. In the prototype there is one seeded workspace and one seeded location. The server resolves the workspace from the caller's `ACTIVE` membership; **the client never supplies a workspace id** (no `workspace_id` in URLs, bodies, or query strings). Multi-workspace selection is deferred.
 
-The workspace identifier can be provided through a route, validated request context, or another explicit application convention. Regardless of its source, the server must verify access.
+### 4.2 Roles and permissions
 
-### 4.2 Initial roles
+Roles are `USER`, `STAFF`, and `ADMIN` and are nested (`ADMIN` ⊇ `STAFF` ⊇ `USER`). `USER` is a proposed interpretation of the third dashboard. There is no super-admin and no supplier role.
 
-| Action | ADMIN | STAFF |
-|---|---|---|
-| View inventory | Yes | Yes |
-| View products | Yes | Yes |
-| Create and edit products | Yes | As permitted by policy |
-| View suppliers | Yes | Yes |
-| Create purchase orders | Yes | Yes |
-| Post goods receipts | Yes | Yes |
-| Record sales and stock issues | Yes | Yes |
-| Execute transfers | Yes | Yes |
-| Post stock adjustments | Yes | Subject to policy |
-| Manage workspace settings | Yes | No |
-| Invite or suspend members | Yes | No |
-| Change member roles | Yes | No |
-| View audit history | Yes | Restricted |
+The permissions matrix is defined once, in [`TEAM_HANDOFF.md`](../TEAM_HANDOFF.md) §4, and applies unchanged to every endpoint in §6. Summary:
 
-This is the initial policy proposal. Before production, define whether staff may post adjustments, reverse transactions, export reports, or manage particular locations.
+- **USER:** read products, categories, and stock status.
+- **STAFF:** everything USER can do, plus view suppliers, record stock in/out, view movement history, low-stock alerts, and the dashboard summary.
+- **ADMIN:** everything STAFF can do, plus manage products, categories, suppliers, members, thresholds, reports/exports, and audit history.
+
+Enforcement is server-side in a shared helper (`requireRole(min)`); hiding a link or button in the UI is never access control. Reversing a movement is an ADMIN-only stretch goal.
 
 ### 4.3 Authorization checks
 
 For each request:
 
-1. Authenticate the caller.
+1. Authenticate the caller (Clerk).
 2. Resolve the internal user.
-3. Confirm active workspace membership.
-4. Check the required role or permission.
-5. Verify that every referenced entity belongs to the authorized workspace.
-6. Apply location-level restrictions if introduced.
-7. Execute the operation.
+3. Confirm `ACTIVE` workspace membership (no membership or `SUSPENDED` → no data).
+4. Check the minimum role for the operation.
+5. Verify that every referenced entity (product, category, supplier, location) belongs to the authorized workspace.
+6. Execute the operation.
 
-Never authorize access solely because a record ID exists or because a client sends a particular `workspace_id`.
+Never authorize access solely because a record ID exists or because a client sends a particular id.
+
+Failures: unauthenticated → `401`; authenticated but insufficient role or no/suspended membership → `403`. Pages respond to the same conditions with a redirect (see §4.4).
+
+### 4.4 Dashboard destination handling
+
+| Requested `as` | Allowed when role is | Landing route |
+|---|---|---|
+| `user` (default, also used for any unrecognized value) | USER, STAFF, ADMIN | `/inventory` |
+| `staff` | STAFF, ADMIN | `/dashboard` |
+| `admin` | ADMIN | `/admin` |
+
+- If the role covers the request, redirect to its landing route.
+- If the role is lower than requested, redirect to the highest landing route the role allows and show a notice (for example, "Your account does not have Admin access"). The role is not changed.
+- No membership or `SUSPENDED` → `/access-required`.
+- Redirect targets come only from this table. A client-supplied `redirect_url` or path is never followed (prevents open redirects).
+- Direct URL access is checked independently: a STAFF user opening `/admin` or calling an ADMIN API is rejected by the server; a USER opening `/dashboard` or calling `POST /stock-in` is rejected the same way.
+- Signed-out visitors may load `/`, `/sign-in`, and `/sign-up` only. These pages contain no private inventory or supplier data.
 
 ## 5. API Conventions
 
@@ -142,7 +153,8 @@ Examples:
 - `POST /api/v1/products`
 - `GET /api/v1/products/{productId}`
 - `PATCH /api/v1/products/{productId}`
-- `POST /api/v1/goods-receipts/{receiptId}/post`
+- `POST /api/v1/stock-in`
+- `POST /api/v1/products/{productId}/deactivate`
 
 ### Pagination
 
@@ -165,122 +177,73 @@ Allow only explicitly supported filters and sort fields. Do not directly interpo
 
 ## 6. Endpoint Catalogue
 
-The following endpoint catalogue is the proposed MVP contract. Detailed request and response schemas should be implemented alongside the routes.
+The workspace is **resolved on the server** from the caller's `ACTIVE` membership (the prototype has one seeded workspace). Clients never send a workspace id. Roles in the tables are the *minimum* role (`USER` < `STAFF` < `ADMIN`); the full permissions matrix is in [`TEAM_HANDOFF.md`](../TEAM_HANDOFF.md) §4. **None of these endpoints exist yet** (`src/app/api` has not been created).
 
-### 6.1 Workspaces and members
+### 6.1 Session and members
 
-| Method | Endpoint | Purpose |
-|---|---|---|
-| GET | `/workspaces` | List the caller's workspaces |
-| GET | `/workspaces/{id}` | Retrieve authorized workspace details |
-| PATCH | `/workspaces/{id}` | Update workspace settings |
-| GET | `/workspaces/{id}/members` | List members |
-| POST | `/workspaces/{id}/invitations` | Invite a member |
-| PATCH | `/workspaces/{id}/members/{userId}` | Update role or status |
+| Method | Endpoint | Min role | Purpose |
+|---|---|---|---|
+| GET | `/me` | any member | Caller's role, status, and landing route |
+| GET | `/members` | ADMIN | List members |
+| GET | `/members/pending` | ADMIN | Signed-in users who have no membership yet |
+| POST | `/members` | ADMIN | Grant a role to an existing user (never automatic) |
+| PATCH | `/members/{userId}` | ADMIN | Change role or suspend |
+| GET, PATCH | `/settings` | ADMIN | Default low-stock threshold |
+| GET | `/audit-logs` | ADMIN | Audit history |
 
-Workspace administration endpoints require appropriate permissions.
+Sign-in landing is handled by the page route `/auth/continue?as=user|staff|admin` (not an API). It treats `as` as a *request* only; see §4.4.
 
-### 6.2 Locations
+### 6.2 Products
 
-| Method | Endpoint | Purpose |
-|---|---|---|
-| GET | `/locations` | List authorized locations |
-| POST | `/locations` | Create a branch or warehouse |
-| GET | `/locations/{id}` | Retrieve location details |
-| PATCH | `/locations/{id}` | Update location details |
-| POST | `/locations/{id}/deactivate` | Deactivate a location |
+| Method | Endpoint | Min role | Purpose |
+|---|---|---|---|
+| GET | `/products` | USER | List/search. Filters: `search`, `categoryId`, `stock=all\|low\|out`, `status=active\|archived` (`archived` requires ADMIN), `sort`, `limit`, `cursor` |
+| POST | `/products` | ADMIN | Create. Optional `openingQuantity` creates an `OPENING_STOCK` movement in the same transaction |
+| GET | `/products/{id}` | USER | Detail with stock quantity and status |
+| PATCH | `/products/{id}` | ADMIN | Edit name, description, category, unit label, threshold. **Cannot change quantity** |
+| DELETE | `/products/{id}` | ADMIN | Only if the product has no stock movements; otherwise `409 PRODUCT_HAS_HISTORY` |
+| POST | `/products/{id}/deactivate` | ADMIN | Archive |
+| POST | `/products/{id}/reactivate` | ADMIN | Restore |
 
-A location with historical inventory records should not be hard-deleted.
+### 6.3 Categories and suppliers
 
-### 6.3 Products and units
+| Method | Endpoint | Min role | Purpose |
+|---|---|---|---|
+| GET | `/categories` | USER | List |
+| POST, PATCH, DELETE | `/categories`, `/categories/{id}` | ADMIN | Manage. Delete rejected (`409 CATEGORY_IN_USE`) while products use it |
+| GET | `/suppliers`, `/suppliers/{id}` | STAFF | View |
+| POST, PATCH | `/suppliers`, `/suppliers/{id}` | ADMIN | Manage |
+| DELETE | `/suppliers/{id}` | ADMIN | Only if no movement references it; else `409` and use deactivate |
+| POST | `/suppliers/{id}/deactivate` | ADMIN | Archive |
 
-| Method | Endpoint | Purpose |
-|---|---|---|
-| GET | `/products` | List products |
-| POST | `/products` | Create a product |
-| GET | `/products/{id}` | Retrieve product details |
-| PATCH | `/products/{id}` | Update editable product fields |
-| POST | `/products/{id}/deactivate` | Deactivate a product |
-| GET | `/products/{id}/units` | List supported units |
-| POST | `/products/{id}/units` | Add a unit conversion |
-| GET | `/products/{id}/inventory` | Retrieve stock by location |
+### 6.4 Stock in, stock out, and history
 
-Do not allow an ordinary product update to rewrite unit conversions used by posted transactions.
+| Method | Endpoint | Min role | Purpose |
+|---|---|---|---|
+| POST | `/stock-in` | STAFF | Record a purchase / opening stock / return in. One product per request. `Idempotency-Key` **required** |
+| POST | `/stock-out` | STAFF | Record an issue (stock leaving inventory). One product per request. `Idempotency-Key` **required**. `422 INSUFFICIENT_STOCK` if quantity exceeds available |
+| GET | `/stock-movements` | STAFF | Search history. Filters: `productId`, `type`, `supplierId`, `from`, `to`, `actorId`; cursor paging |
+| GET | `/stock-movements/{id}` | STAFF | Movement detail |
+| POST | `/stock-movements/{id}/reverse` | ADMIN | *Stretch goal.* Creates a compensating movement; never edits the original |
 
-### 6.4 Suppliers
+Request bodies carry `productId`, `quantity` (decimal string, `> 0`), `reasonCode`, optional `supplierId`, `unitCost`, `reference`, `note`, `occurredAt`. Actor and workspace come from the session. Saving a confirmed request **posts** it: there are no draft stock documents in the MVP, and a request that fails changes nothing.
 
-| Method | Endpoint | Purpose |
-|---|---|---|
-| GET | `/suppliers` | List suppliers |
-| POST | `/suppliers` | Create a supplier |
-| GET | `/suppliers/{id}` | Retrieve supplier details |
-| PATCH | `/suppliers/{id}` | Update supplier details |
-| POST | `/suppliers/{id}/deactivate` | Deactivate a supplier |
+### 6.5 Summaries, alerts, and reports
 
-### 6.5 Purchasing
+| Method | Endpoint | Min role | Purpose |
+|---|---|---|---|
+| GET | `/dashboard/summary` | STAFF | Product count, total units, low and out-of-stock counts, recent movements |
+| GET | `/alerts/low-stock` | STAFF | Active products where `quantity <= threshold` (rule in doc 03) |
+| GET | `/reports/stock-summary` | ADMIN | Stock by product/category. `?format=csv` for export |
+| GET | `/reports/movements` | ADMIN | Movement report for a date range. `?format=csv` for export |
 
-| Method | Endpoint | Purpose |
-|---|---|---|
-| GET | `/purchase-orders` | List purchase orders |
-| POST | `/purchase-orders` | Create a draft order |
-| GET | `/purchase-orders/{id}` | Retrieve an order |
-| PATCH | `/purchase-orders/{id}` | Update an eligible draft |
-| POST | `/purchase-orders/{id}/submit` | Submit an order |
-| POST | `/purchase-orders/{id}/cancel` | Cancel an eligible order |
-| GET | `/goods-receipts` | List receipts |
-| POST | `/goods-receipts` | Create a draft receipt |
-| GET | `/goods-receipts/{id}` | Retrieve a receipt |
-| PATCH | `/goods-receipts/{id}` | Update an eligible draft |
-| POST | `/goods-receipts/{id}/post` | Post the receipt to inventory |
-| POST | `/goods-receipts/{id}/reverse` | Initiate a controlled reversal |
+Users see stock status through `GET /products`; they do not get the alerts or summary endpoints.
 
-A posted receipt creates stock movements. Creating or editing a draft does not.
+### 6.6 Deferred endpoints (reference only — not required for the prototype)
 
-### 6.6 Sales and stock issues
+The v1.0 catalogue for workspaces/invitations, `/locations`, `/products/{id}/units`, `/purchase-orders`, `/goods-receipts`, `/sales`, `/stock-issues`, `/transfers`, `/stock-adjustments`, `/reports/inventory-valuation`, `/reports/sales-summary`, and `/intelligence/*` is **deferred**. The posting patterns in §10 for receipts, sales, and transfers remain valid reference when those features are built.
 
-| Method | Endpoint | Purpose |
-|---|---|---|
-| GET | `/sales` | List sales |
-| POST | `/sales` | Create a draft sale |
-| GET | `/sales/{id}` | Retrieve a sale |
-| PATCH | `/sales/{id}` | Update an eligible draft |
-| POST | `/sales/{id}/post` | Deduct inventory |
-| POST | `/sales/{id}/reverse` | Initiate a controlled reversal |
-| GET | `/stock-issues` | List non-sale stock issues |
-| POST | `/stock-issues` | Create a stock issue |
-| POST | `/stock-issues/{id}/post` | Post the stock issue |
-
-Sales and stock issues must remain distinguishable in the inventory ledger and reporting.
-
-### 6.7 Transfers and adjustments
-
-| Method | Endpoint | Purpose |
-|---|---|---|
-| GET | `/transfers` | List transfers |
-| POST | `/transfers` | Create a transfer draft |
-| GET | `/transfers/{id}` | Retrieve a transfer |
-| POST | `/transfers/{id}/post` | Execute an immediate transfer |
-| POST | `/transfers/{id}/reverse` | Initiate a controlled reversal |
-| GET | `/stock-adjustments` | List adjustments |
-| POST | `/stock-adjustments` | Create an adjustment |
-| POST | `/stock-adjustments/{id}/post` | Post an adjustment |
-
-A transfer must update both locations atomically in the MVP's immediate-transfer model.
-
-### 6.8 Reports and intelligence
-
-| Method | Endpoint | Purpose |
-|---|---|---|
-| GET | `/inventory/movements` | Search movement history |
-| GET | `/reports/stock-summary` | Retrieve stock summaries |
-| GET | `/reports/inventory-valuation` | Retrieve valuation data |
-| GET | `/reports/low-stock` | Retrieve low-stock products |
-| GET | `/reports/sales-summary` | Retrieve sales summaries |
-| GET | `/intelligence/forecasts` | Retrieve demand forecasts |
-| GET | `/intelligence/stockout-risks` | Retrieve stock-out risk estimates |
-| GET | `/intelligence/reorder-recommendations` | Retrieve replenishment suggestions |
-
-Long-running analytics should be generated asynchronously rather than blocking stock transactions.
+> **Removed (superseded):** shop, cart, checkout, customer-order, and customer-account endpoints. Ziggy has no consumer storefront.
 
 ## 7. Request Validation
 
@@ -300,9 +263,9 @@ Validate:
 - Maximum request payload sizes.
 - Supported filter and sort values.
 
-The server must recalculate authoritative values such as inventory value, stock availability, and weighted-average cost.
+The server must recalculate authoritative values such as stock availability and resulting quantity (and, in deferred features, inventory value and weighted-average cost).
 
-Do not trust client-calculated totals or valuation figures.
+Do not trust client-calculated quantities or totals.
 
 ## 8. Error Response Format
 
@@ -353,7 +316,7 @@ For eligible endpoints, accept an `Idempotency-Key` header.
 Example:
 
 ```http
-POST /api/v1/goods-receipts/receipt-id/post
+POST /api/v1/stock-out
 Idempotency-Key: unique-client-operation-key
 ```
 
@@ -370,9 +333,31 @@ An idempotency key does not replace database constraints or concurrency control.
 
 ## 10. Inventory Transaction Safety
 
-All stock-posting operations must run through shared domain services.
+All stock-posting operations must run through shared domain services (callable from API routes and tests alike).
 
-### Posting a receipt
+### Posting stock in / stock out (MVP)
+
+`POST /stock-in` and `POST /stock-out` create and post a movement in one step. There is no draft stage; a failed request changes nothing.
+
+1. Authenticate and authorize (`STAFF` or above).
+2. Validate the body with Zod (positive decimal quantity, allowed `reasonCode` for the direction, product and optional supplier belong to the caller's workspace, product is active).
+3. Begin a transaction.
+4. Look up the `Idempotency-Key` for this workspace and operation. Same key + same payload hash → return the stored result. Same key + different payload → `409`.
+5. Lock the `inventory_balances` row for the product/location (`SELECT … FOR UPDATE`, or a conditional `UPDATE … WHERE quantity_on_hand >= :qty RETURNING`). Create the row at zero if missing.
+6. For `STOCK_OUT`, verify `quantity_on_hand >= quantity`; otherwise roll back with `422 INSUFFICIENT_STOCK`.
+7. Insert the immutable `stock_movements` row (actor, timestamp, type, reason, reference, `balance_after`).
+8. Update the balance, store the idempotency record, and write an audit row.
+9. Commit. Any failure rolls back the whole transaction.
+
+Two simultaneous stock-outs for the same product must serialize on the balance lock; the second sees the reduced quantity. Quantities are decimal strings/`numeric` end to end — never JavaScript floats.
+
+Reversal (ADMIN, stretch goal) inserts a compensating movement with `reverses_movement_id`; it never edits or deletes the original and is also blocked if it would make stock negative.
+
+### Deferred posting flows (reference only)
+
+The receipt, sale, and transfer flows below describe future purchase-order, sales, and multi-location features. They are **not required** for the college prototype.
+
+### Posting a receipt *(deferred)*
 
 1. Authenticate and authorize.
 2. Validate the receipt and destination location.
@@ -385,7 +370,7 @@ All stock-posting operations must run through shared domain services.
 9. Record the audit event.
 10. Commit.
 
-### Posting a sale
+### Posting a sale *(deferred)*
 
 1. Authenticate and authorize.
 2. Lock or safely serialize affected balances.
@@ -397,7 +382,7 @@ All stock-posting operations must run through shared domain services.
 8. Record the audit event.
 9. Commit.
 
-### Posting a transfer
+### Posting a transfer *(deferred)*
 
 1. Validate source and destination locations.
 2. Lock both locations' affected balances in a deterministic order.
@@ -426,7 +411,7 @@ If PostgreSQL Row-Level Security is enabled, validate its behavior with the sele
 
 The application must never assume that an opaque UUID is sufficient authorization to access a record.
 
-## 12. File Upload Security
+## 12. File Upload Security *(deferred — product images are not in the MVP)*
 
 Product image uploads should use signed object-storage URLs.
 
@@ -443,10 +428,12 @@ Do not expose storage credentials to the browser. Do not trust the original file
 
 ## 13. Rate Limiting and Abuse Prevention
 
+*MVP: optional. Implement basic limits only if time allows; the AI and upload items below are deferred.*
+
 Apply appropriate rate limits to:
 
 - Authentication-adjacent endpoints.
-- Invitation endpoints.
+- Member-management endpoints.
 - Image-upload URL generation.
 - Expensive report queries.
 - AI generation requests.
@@ -458,11 +445,11 @@ Apply stricter controls to resource-intensive endpoints. Rate limits must not in
 
 Record meaningful events, including:
 
-- Member invitations, role changes, and suspensions.
-- Workspace setting changes.
-- Product and location changes.
-- Receipt, sale, adjustment, and transfer posting.
-- Transaction reversals.
+- Role grants, role changes, and suspensions.
+- Workspace setting changes (including the default low-stock threshold).
+- Product, category, and supplier creation, edits, archiving, and deletion.
+- Stock-in and stock-out posting.
+- Transaction reversals (stretch goal).
 - Repeated duplicate-posting attempts.
 - Sensitive permission failures.
 
@@ -488,51 +475,52 @@ Do not use wildcard CORS rules for credentialed requests.
 
 ### Authentication and authorization
 
-- Unauthenticated requests are rejected.
-- Suspended members cannot perform protected actions.
-- Staff cannot administer the workspace.
-- A user cannot access another workspace's records by changing IDs.
-- Cross-workspace product and location references are rejected.
+- Unauthenticated requests are rejected (`401`).
+- A signed-in user with no membership, or a `SUSPENDED` member, gets no data (`403` / access-required).
+- `USER` cannot call `POST /stock-in`, `POST /stock-out`, `/stock-movements`, `/suppliers`, `/dashboard/summary`, or any ADMIN endpoint.
+- `STAFF` cannot call ADMIN endpoints (product/category/supplier writes, members, reports, audit, settings).
+- The "Login as" value (`as=`) never changes a role; an unknown value falls back to `user`; a client-supplied redirect URL is ignored.
+- A user cannot access another workspace's records by changing IDs; cross-workspace product, category, and supplier references are rejected.
 
 ### Inventory integrity
 
-- Duplicate posting does not duplicate stock movements.
-- Concurrent sales cannot oversell available stock.
-- Failed transfers do not update only one location.
-- Failed receipts do not partially update balances.
-- Reversals create appropriate compensating movements.
-- Weighted-average cost calculations use the correct location valuation.
+- Stock in increases the quantity and creates exactly one movement; stock out decreases it.
+- Stock out greater than available stock is rejected (`422`) and changes nothing.
+- Duplicate submission with the same `Idempotency-Key` does not duplicate the movement; the same key with a different payload returns `409`.
+- Concurrent stock-outs on the same product cannot take quantity below zero.
+- A failed request rolls back completely (no movement without a balance change, and vice versa).
+- A product with movements cannot be deleted (`409`); a product without movements can.
+- Low-stock rule: `quantity <= threshold` is flagged, `quantity > threshold` is not; quantity 0 is out of stock.
+- Reversals (if built) create compensating movements.
 
 ### Validation
 
-- Invalid quantities are rejected.
-- Unsupported units are rejected.
-- Invalid state transitions are rejected.
-- Client-provided totals cannot override server calculations.
+- Invalid, zero, or negative quantities are rejected; quantities are handled as decimals.
+- Unknown reason codes, or a reason that does not match the direction, are rejected.
+- Client-provided totals or quantities-on-hand cannot override server calculations.
 - Malformed identifiers and excessive payloads are rejected.
 
 ### Reliability
 
 - Database errors result in transaction rollback.
-- Retryable operations preserve idempotency.
-- Background analytics failures do not block inventory operations.
 - Sensitive details are not returned in error messages.
 
 ## 17. Definition of Done
 
-The API and security implementation is ready when:
+The MVP API and security implementation is ready when:
 
 1. All protected endpoints validate the caller's session.
-2. Workspace membership and role checks are enforced server-side.
+2. Membership (`ACTIVE`) and role checks are enforced server-side on every page and endpoint.
 3. Every referenced business record is verified against the authorized workspace.
 4. All requests are validated at the API boundary.
-5. Stock-posting endpoints use transactional domain services.
+5. Stock in/out use a transactional domain service with balance locking.
 6. Idempotency and concurrency tests pass.
 7. Consistent error responses are implemented.
-8. File uploads use controlled object-storage access.
-9. Important actions generate audit records.
-10. Production secrets and security headers are configured.
-11. Cross-tenant access tests pass.
-12. API contracts are documented and version-controlled.
+8. Important actions generate audit records.
+9. Secrets stay out of the client and out of git.
+10. Cross-role and cross-tenant access tests pass.
+11. API contracts are documented and version-controlled.
+
+*Deferred before any production use:* signed-URL image uploads, rate limiting, security headers/CSP review, backup and restore testing.
 
 **End of Document 05 — API & Security Specification**

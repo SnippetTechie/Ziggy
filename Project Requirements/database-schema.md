@@ -1,9 +1,65 @@
 # Ziggy — Database Schema Specification
 
 **Document:** 03 — Database Schema  
-**Version:** 1.0  
+**Version:** 1.1
+
 **Database:** Neon PostgreSQL  
-**Status:** Proposed schema for MVP
+**Status:** Corrected MVP schema — **proposed; no tables exist yet** — plus deferred reference tables
+
+> **Scope correction.** Ziggy is an Online Inventory and Stock Management System (see PRD v1.1). The consumer-storefront tables once proposed here (`customers`, `customer_addresses`, `customer_orders`, `customer_order_items`) are **superseded and must not be created**. Sections marked *deferred* are advanced reference material, not prerequisites for the college prototype.
+
+## MVP data model (authoritative for the prototype)
+
+Created through Drizzle migrations only. Conventions in §1 apply (UUID keys, `snake_case`, `timestamptz`, `numeric` quantities). One seeded workspace and one seeded location; every table still carries `workspace_id` (and `location_id` where stock is held).
+
+| Table | Owner (see `TEAM_HANDOFF.md` §7) | Key columns and rules |
+|---|---|---|
+| `users` | Identity | `id`, `clerk_user_id` (unique), `email`, `display_name`. Created on first sign-in with **no membership**. |
+| `workspaces` | Identity | `id`, `name`, `slug`, `settings` (JSONB; holds `defaultLowStockThreshold`). One seeded row. |
+| `workspace_members` | Identity | PK `(workspace_id, user_id)`, `role` ∈ `USER`/`STAFF`/`ADMIN`, `status` ∈ `ACTIVE`/`SUSPENDED`. Created only by the seed script or by an Admin — never automatically on sign-up. |
+| `locations` | Identity | One seeded row ("Main store"). Same shape as §4. |
+| `audit_logs` | Identity | `workspace_id`, `actor_user_id`, `action`, `entity_type`, `entity_id`, `created_at`, minimal `context`. |
+| `product_categories` | Catalogue | `name` unique per workspace; cannot be deleted while products reference it. |
+| `suppliers` | Catalogue | As §6. Deleted only if no movement references it; otherwise `is_active = false`. |
+| `products` | Catalogue | `sku` unique per workspace, `name`, `description`, `category_id`, `unit_label` (e.g. `pcs`, `kg`, `box`), `low_stock_threshold` (nullable numeric ≥ 0; null = workspace default), `is_active`. **No quantity column.** |
+| `inventory_balances` | Inventory | PK `(location_id, product_id)`, `workspace_id`, `quantity_on_hand numeric(20,6)` with `CHECK (quantity_on_hand >= 0)`, `updated_at`. Row created when the product is created (or at first movement). |
+| `stock_movements` | Inventory | See below. Immutable. |
+| `idempotency_keys` | Inventory | `workspace_id`, `user_id`, `key`, `operation`, `request_hash`, `movement_id`, `response_body`, `created_at`; unique `(workspace_id, key)`. Retention is a policy decision (suggest 24 h cleanup). |
+
+### `stock_movements`
+
+| Column | Type | Rules |
+|---|---|---|
+| `id` | UUID | Primary key |
+| `workspace_id` | UUID | Required; composite FKs prevent cross-workspace references |
+| `location_id` | UUID | Required |
+| `product_id` | UUID | Required |
+| `movement_type` | TEXT | `STOCK_IN` or `STOCK_OUT` |
+| `reason_code` | TEXT | See list below |
+| `quantity` | NUMERIC(20,6) | Always `> 0`; direction comes from `movement_type` |
+| `balance_after` | NUMERIC(20,6) | Quantity on hand immediately after this movement (snapshot for history) |
+| `supplier_id` | UUID | Optional; normally set for `PURCHASE` |
+| `unit_cost` | NUMERIC(20,6) | Optional, `>= 0`; informational only (no valuation in MVP) |
+| `reference` | TEXT | Optional invoice / issue-slip / lab-request number |
+| `note` | TEXT | Optional free text |
+| `reverses_movement_id` | UUID | Set only on reversal movements (stretch goal) |
+| `idempotency_key` | TEXT | Key supplied by the client for the posting request |
+| `created_by` | UUID | Actor, FK to `users`; set by the server |
+| `occurred_at` | TIMESTAMPTZ | Business time; defaults to `created_at` |
+| `created_at` | TIMESTAMPTZ | Server time |
+
+Reason codes — stock in: `PURCHASE`, `OPENING_STOCK`, `RETURN_IN`, `ADJUSTMENT_IN`. Stock out: `ISSUE` (generic stock leaving inventory), `USED`, `DAMAGED`, `LOST`, `ADJUSTMENT_OUT`. `REVERSAL` is used by compensating movements. "Issue" means stock leaving inventory, not a complaint.
+
+Rules:
+
+- Rows are never updated or deleted (enforce with application code and, ideally, a database trigger or revoked privileges).
+- A product that has any `stock_movements` row cannot be deleted; set `is_active = false`.
+- Posting (one transaction): resolve idempotency key → lock the `inventory_balances` row (`SELECT … FOR UPDATE`, or a conditional `UPDATE … WHERE quantity_on_hand >= :qty RETURNING`) → verify availability for `STOCK_OUT` → insert the movement with `balance_after` → update the balance → write an audit row → commit. Any failure rolls back everything.
+- Indexes (suggested): `(workspace_id, product_id, created_at desc)`, `(workspace_id, created_at desc)`, `(workspace_id, movement_type, created_at desc)`.
+
+### Low-stock rule
+
+Computed on read, not stored: for an active product, `quantity_on_hand <= COALESCE(products.low_stock_threshold, workspace default)`. Status labels: **Out of stock** (`quantity = 0`), **Low stock** (above 0 but at/below threshold), **In stock** (above threshold). If a persisted `alerts` table is ever added it must be derived from this same rule.
 
 ## 1. Database Design Principles
 
@@ -12,10 +68,10 @@ The database must:
 - Support multiple businesses and multiple locations per business.
 - Prevent users from accessing another workspace's data.
 - Preserve a traceable history of inventory transactions.
-- Maintain accurate quantities and inventory valuation.
-- Support partial purchase receipts.
-- Support product-specific unit conversions.
-- Provide reliable reporting and AI analytics.
+- Maintain accurate quantities. *(Inventory valuation is deferred.)*
+- *(Deferred)* Support partial purchase receipts.
+- *(Deferred)* Support product-specific unit conversions.
+- Provide reliable reporting. *(AI analytics is deferred.)*
 - Enforce integrity through database constraints and transactions.
 
 ### Naming conventions
@@ -29,6 +85,8 @@ The database must:
 - Posted inventory transactions are not silently overwritten.
 
 ## 2. Entity Relationship Overview
+
+> Full conceptual model. Only the tables in the *MVP data model* section are required for the prototype; purchasing, sales, `product_units`, valuation, forecast, and recommendation tables are **deferred reference**.
 
 ```mermaid
 erDiagram
@@ -103,7 +161,7 @@ Associates users with businesses.
 |---|---|---|
 | `workspace_id` | UUID | FK to workspaces |
 | `user_id` | UUID | FK to users |
-| `role` | TEXT | `ADMIN` or `STAFF` |
+| `role` | TEXT | `USER`, `STAFF`, or `ADMIN` (nested; `USER` is read-only) |
 | `status` | TEXT | `ACTIVE` or `SUSPENDED` |
 | `created_at` | TIMESTAMPTZ | Required |
 
@@ -112,6 +170,8 @@ Associates users with businesses.
 A user can belong to multiple workspaces, with a separate role in each. Membership status must be checked before access is granted.
 
 ## 4. Locations
+
+> MVP: exactly one seeded row. Multi-location behavior is a future extension.
 
 ### `locations`
 
@@ -159,9 +219,9 @@ Unique category names may be enforced within the relevant parent/category scope.
 | `sku` | TEXT | Required within workspace |
 | `name` | TEXT | Required |
 | `description` | TEXT | Optional |
-| `base_unit_code` | TEXT | Required |
+| `base_unit_code` | TEXT | Required *(MVP: use `unit_label` and `low_stock_threshold` from the MVP data model instead of unit conversions)* |
 | `barcode` | TEXT | Optional |
-| `image_object_key` | TEXT | Optional |
+| `image_object_key` | TEXT | Optional *(deferred)* |
 | `is_active` | BOOLEAN | Default true |
 | `created_at` | TIMESTAMPTZ | Required |
 | `updated_at` | TIMESTAMPTZ | Required |
@@ -175,7 +235,7 @@ Constraints:
 
 The base unit defines how inventory quantities are stored. For example, a product sold in bags may use `kg` as its base stock unit, with a conversion of one bag to 25 kg.
 
-### 5.3 `product_units`
+### 5.3 `product_units` *(deferred — not in the MVP; MVP uses `products.unit_label`)*
 
 Stores supported units and conversions for each product.
 
@@ -217,7 +277,9 @@ If a business changes packaging or a conversion factor, create a controlled vers
 
 Supplier details are workspace-specific. The same supplier may be entered separately by different businesses.
 
-## 7. Purchasing Tables
+## 7. Purchasing Tables *(deferred — not in the MVP)*
+
+> Purchase orders and goods receipts are future enhancements. In the MVP a purchase is recorded directly as a `STOCK_IN` movement with `reason_code = PURCHASE` and an optional supplier. This section is truncated in its source and kept as reference only.
 
 ### 7.1 `purchase_orders`
 

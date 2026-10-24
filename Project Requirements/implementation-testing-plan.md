@@ -2,126 +2,89 @@
 
 **Document:** 07 — Implementation & Testing Plan  
 **Version:** 1.0  
-**Status:** Proposed MVP delivery plan
+**Status:** Corrected MVP delivery plan (proposed)
 
 ## 1. Objective
 
-Build a production-minded MVP of Ziggy, an inventory management SaaS for grocery shops, wholesalers, and distributors.
+> **Scope correction.** Our required project is an Online Inventory and Stock Management System for small businesses, college laboratories, or campus stores (PRD v1.1). Earlier versions of this plan included a consumer storefront and heavy purchasing/valuation/AI phases; those are **superseded or deferred**. The three-person split of this work is in `TEAM_HANDOFF.md`.
 
-The MVP must support:
+Build a working, demonstrable prototype of Ziggy. The MVP must support:
 
-- Multiple business workspaces.
-- Workspace-based authentication and permissions.
-- Multiple branches and warehouses.
-- Product catalogue and unit conversions.
-- Supplier management.
-- Purchase orders and partial goods receipts.
-- Sales and non-sale stock issues.
-- Stock adjustments and transfers.
-- Inventory balances and moving weighted-average valuation.
-- Stock reports and low-stock alerts.
-- Advisory demand forecasting and reorder recommendations.
+- Google sign-in (Clerk) with server-side membership checks and three roles (USER, STAFF, ADMIN).
+- Add, edit, view, and delete products (archive when history exists).
+- Categories and suppliers.
+- Stock in (purchases) and stock out (issues) with automatic quantity updates and immutable history.
+- Low-stock alerts, inventory summaries, transaction history, and reports.
+- One seeded workspace and one seeded location.
 
-The primary objective is to deliver reliable inventory workflows before adding advanced AI features.
+Demonstration: **Admin login → add products → record stock in/out → quantities update → low-stock alerts → reports.**
+
+The primary objective is to deliver reliable stock-in/stock-out workflows with correct access control. Deferred: purchase-order approval workflows, partial receipts, multiple warehouses and transfers, advanced unit conversions, weighted-average costing, AI forecasting.
 
 ## 2. Implementation Principles
 
-1. Build the core inventory engine before the AI layer.
+1. Build the inventory engine (stock in/out) before dashboards and reports.
 2. Implement authorization before exposing business data.
-3. Define the database schema and migrations before building dependent workflows.
-4. Use a modular monolith for the initial release.
-5. Keep stock-changing operations transactional and auditable.
-6. Test financial and inventory calculations independently.
+3. Define the database schema and migrations before building dependent workflows; coordinate schema changes by owner (`TEAM_HANDOFF.md` §8).
+4. Use a modular monolith.
+5. Keep stock-changing operations transactional, idempotent, and auditable.
+6. Test inventory calculations and access rules independently.
 7. Deliver features incrementally in working, testable slices.
 8. Do not consider a feature complete merely because its UI exists.
 9. Keep assumptions and unresolved product decisions visible.
-10. Validate the product with real operational workflows before launch.
+10. Do not claim a planned feature works until it is merged and tested.
 
 ## 3. Recommended Repository Structure
 
-A single Next.js repository is sufficient for the MVP.
+A single Next.js repository. The tree shows the target; directories are created as features land. **Currently present:** `src/app` (wireframe routes), `src/components/{layout,shop,wireframe}`, `src/lib/demo.ts`, `src/server/db/{index,schema}.ts`, `drizzle/migrations/meta`. Everything else is planned.
 
 ```text
 ziggy/
-├── public/
-│   ├── icons/
-│   └── images/
+├── public/images/                 # logo
 ├── src/
 │   ├── app/
-│   │   ├── (auth)/
-│   │   ├── (app)/
-│   │   │   ├── dashboard/
-│   │   │   ├── inventory/
-│   │   │   ├── products/
-│   │   │   ├── purchasing/
-│   │   │   ├── sales/
-│   │   │   ├── transfers/
+│   │   ├── page.tsx               # public inventory entry
+│   │   ├── (auth)/                # sign-in, sign-up
+│   │   ├── auth/continue/         # planned: destination resolver
+│   │   ├── access-required/       # planned
+│   │   ├── (app)/                 # USER + STAFF + ADMIN routes
+│   │   │   ├── inventory/         # USER landing
+│   │   │   ├── dashboard/         # STAFF landing
+│   │   │   ├── purchasing/        # stock in
+│   │   │   ├── issues/            # planned: stock out
+│   │   │   ├── movements/         # planned
+│   │   │   ├── products/          # ADMIN
+│   │   │   ├── categories/        # planned, ADMIN
 │   │   │   ├── suppliers/
-│   │   │   ├── reports/
-│   │   │   ├── intelligence/
-│   │   │   └── admin/
-│   │   └── api/
-│   │       └── v1/
-│   ├── components/
-│   │   ├── ui/
-│   │   ├── layout/
-│   │   ├── tables/
-│   │   ├── forms/
-│   │   └── charts/
-│   ├── modules/
-│   │   ├── auth/
-│   │   ├── workspaces/
-│   │   ├── locations/
-│   │   ├── products/
-│   │   ├── suppliers/
-│   │   ├── purchasing/
-│   │   ├── inventory/
-│   │   ├── sales/
-│   │   ├── transfers/
-│   │   ├── reports/
-│   │   └── intelligence/
+│   │   │   ├── reports/           # ADMIN
+│   │   │   └── settings/
+│   │   ├── admin/                 # ADMIN landing and admin pages
+│   │   └── api/v1/                # planned
+│   ├── components/{ui,layout,tables,forms}/
+│   ├── modules/                   # planned: access, products, categories, suppliers, inventory, reports
 │   ├── server/
-│   │   ├── db/
-│   │   ├── auth/
-│   │   ├── authorization/
-│   │   ├── services/
-│   │   ├── validation/
-│   │   └── observability/
+│   │   ├── db/schema/             # planned: identity.ts, catalogue.ts, inventory.ts, index.ts
+│   │   ├── auth/  authorization/  # planned: getAccess, requireRole
+│   │   ├── services/  validation/
 │   ├── lib/
-│   └── types/
-├── drizzle/
-│   └── migrations/
-├── tests/
-│   ├── unit/
-│   ├── integration/
-│   ├── e2e/
-│   └── fixtures/
-├── scripts/
-├── docs/
+├── drizzle/migrations/
+├── tests/{unit,integration,e2e,fixtures}/
+├── scripts/                       # planned: seed
 ├── .env.example
-├── package.json
-├── tsconfig.json
-└── README.md
+└── package.json
 ```
 
-This is a recommended starting structure, not a requirement to create every directory immediately.
+Obsolete (to be removed in a focused cleanup, see `TEAM_HANDOFF.md` §10): `src/app/shop/**`, `src/app/(app)/orders/**`, `src/components/shop/**`.
 
-Keep domain logic independent of UI components. Inventory services should be reusable from API routes, background jobs, and automated tests.
+Keep domain logic independent of UI components. Inventory services must be reusable from API routes and automated tests.
 
 ## 4. Development Environment
 
 ### Recommended stack
 
-- Next.js with TypeScript.
-- React.
-- Tailwind CSS.
-- shadcn/ui.
-- Clerk.
-- Neon PostgreSQL.
-- Drizzle ORM.
-- Zod.
-- A suitable test runner such as Vitest.
-- Playwright for browser-based end-to-end tests.
+Installed today: Next.js 16 with TypeScript, React 19, Tailwind CSS 4, Neon PostgreSQL client, Drizzle ORM + drizzle-kit, Lucide icons, ESLint.
+
+Planned, **not installed yet**: Clerk, Zod, shadcn/ui, a decimal library (e.g. `decimal.js`), Vitest, and Playwright (optional, for the demo-flow test). Adding a dependency goes through the `package.json` owner (see `TEAM_HANDOFF.md` §8).
 
 Choose compatible, stable versions and pin dependencies through the package manager lockfile.
 
@@ -131,323 +94,80 @@ Maintain an `.env.example` containing variable names and placeholder values, wit
 
 Expected configuration includes:
 
-- Clerk publishable key.
-- Clerk secret key.
-- Clerk webhook secret, if webhooks are used.
-- Neon database connection string.
-- Object-storage configuration.
-- Application base URL.
-- Background-job credentials, if applicable.
-- AI provider or model-service configuration, if applicable.
-- Error-monitoring configuration.
+- Neon database connection strings (pooled and unpooled) — already in `.env.example`.
+- Clerk publishable and secret keys — already listed in `.env.example`; not yet used.
+- Seed admin email (planned, e.g. `SEED_ADMIN_EMAIL`).
+- *Deferred:* object-storage configuration, background-job credentials, AI provider configuration, error-monitoring configuration.
 
 Never commit actual secrets to source control.
 
-## 5. Phase 1 — Project Foundation
+## 5. Phased Delivery (corrected MVP)
 
-### Tasks
+Phases map to the checklist in `TEAM_HANDOFF.md` §9. Owners: Teammate 1 = catalogue; Teammate 2 = inventory; Shoaeb = auth, access control, dashboards/reports. Work within a phase proceeds in parallel against the agreed contracts.
 
-- Initialize the Next.js application.
-- Configure TypeScript and linting.
-- Add Tailwind CSS and the component library.
-- Establish the design tokens.
-- Create the application shell and navigation.
-- Configure Clerk authentication.
-- Provision a development Neon database.
-- Configure the database access layer.
-- Set up schema migrations.
-- Establish environment separation.
-- Add unit and integration test commands.
-- Configure CI checks.
+### Phase 1 — Foundation *(partly done)*
 
-### Deliverables
+- Done: Next.js 16 scaffold, Tailwind, Drizzle + Neon client, ESLint, wireframes, app shell.
+- To do: install Clerk, Zod, a decimal library (single owner of `package.json`: Shoaeb); schema folder + identity tables; `getAccess`/`requireRole` (dev stub first); seed script (workspace, "Main store" location, first Admin); `products`/`product_categories` and `inventory_*` schema PRs; Vitest and CI checks.
+- Exit: signed-in user reaches the app; a user without membership cannot reach business data; migrations run on a Neon branch.
 
-- Application starts locally.
-- Authentication works.
-- Protected pages require a valid session.
-- Database connectivity is verified.
-- Migrations run successfully.
-- Automated checks run in CI.
-- The initial dashboard shell is accessible.
+### Phase 2 — Catalogue and inventory engine (parallel)
 
-### Exit criteria
+- **Catalogue (T1):** product, category, supplier CRUD APIs with Zod validation; delete-vs-archive rule; admin screens.
+- **Inventory engine (T2, highest priority):** `postStockIn` / `postStockOut` in one transaction with balance locking, no negative stock, idempotency keys, audit rows; `stockStatus` helper; opening-stock option on product creation.
+- **Access (Shoaeb):** entry page, `/sign-in` with "Login as", `/auth/continue`, `/access-required`, `/admin/team` (pending access, grant role, suspend).
+- Required tests: stock in/out correctness, insufficient stock, duplicate submission, concurrent stock-outs, rollback on failure, product delete blocked with history, role denial for each protected route/API.
 
-A signed-in user can enter the application, but cannot access business records without valid workspace authorization.
+### Phase 3 — Screens
 
-## 6. Phase 2 — Workspaces and Access Control
+- T2: `/inventory`, `/inventory/[productId]`, `/purchasing` (stock in), `/issues` (stock out), `/movements`.
+- Shoaeb: `/dashboard` and `/admin` summaries, low-stock alerts.
+- T1: finish forms, validation messages, empty/error states.
 
-### Tasks
+### Phase 4 — Reports and hardening
 
-- Implement users and workspace membership.
-- Create workspace onboarding.
-- Support multiple workspaces per user.
-- Add ADMIN and STAFF roles.
-- Implement workspace selection.
-- Add branches and warehouses.
-- Enforce server-side workspace authorization.
-- Implement member invitations and access suspension.
-- Add audit logging for membership changes.
+- `/reports` stock summary and movement report with CSV export (Shoaeb).
+- Cross-role and cross-tenant tests; low-stock rule tests; summary-vs-history reconciliation tests.
+- Stretch: ADMIN reversal of a movement; basic rate limiting.
 
-### Deliverables
+### Phase 5 — Cleanup and demonstration
 
-- A business can be created and configured.
-- Administrators can invite staff.
-- Users can access only authorized workspaces.
-- Roles are enforced on the server.
-- Workspace and location selection work consistently.
+- Remove obsolete ecommerce code; hide deferred nav items; rename `/sales` to `/issues` in the nav.
+- Rehearse the demo end to end; one Playwright test for the flow if time allows.
 
-### Exit criteria
+### Deferred phases (reference only; not required for the college prototype)
 
-Automated tests confirm that one workspace cannot read or mutate another workspace's data.
-
-## 7. Phase 3 — Product Catalogue and Units
-
-### Tasks
-
-- Implement product categories.
-- Implement products and SKU validation.
-- Add product search and filtering.
-- Add unit definitions and conversion factors.
-- Add product activation and deactivation.
-- Implement product image uploads.
-- Store image metadata in PostgreSQL.
-- Store image objects in the configured object storage.
-- Add product detail pages.
-
-### Deliverables
-
-- Products can be created and edited.
-- SKUs are unique within a workspace.
-- Product units convert to the canonical base unit.
-- Invalid conversions are rejected.
-- Historical conversion values can be preserved.
-
-### Exit criteria
-
-Unit-conversion tests pass and product references cannot cross workspace boundaries.
-
-## 8. Phase 4 — Inventory Engine
-
-This is the highest-priority business-logic phase.
-
-### Tasks
-
-- Implement stock movements.
-- Implement inventory balances.
-- Implement inventory valuation.
-- Define stock movement sign conventions.
-- Implement moving weighted-average cost.
-- Add stock availability checks.
-- Prevent negative inventory by default.
-- Implement idempotent posting.
-- Add transaction-safe balance updates.
-- Add controlled reversal operations.
-- Implement audit events for stock changes.
-
-### Required test cases
-
-- Receiving stock increases the correct balance.
-- Selling stock decreases the correct balance.
-- Stock issues are distinguished from sales.
-- Transfers update both locations.
-- Invalid operations roll back completely.
-- Duplicate requests do not duplicate movements.
-- Concurrent sales cannot oversell stock.
-- Weighted-average cost is calculated correctly.
-- Reversals create compensating movements.
-- Unit conversion changes do not alter historical transactions.
-
-### Exit criteria
-
-The inventory engine passes its unit, integration, and concurrency tests before the main purchasing and sales interfaces are considered complete.
-
-## 9. Phase 5 — Purchasing and Receipts
-
-### Tasks
-
-- Implement supplier management.
-- Create purchase orders and line items.
-- Implement purchase-order status transitions.
-- Support draft and submitted orders.
-- Implement goods receipt creation.
-- Support partial receipts.
-- Validate cumulative receipt quantities.
-- Post receipts through the inventory engine.
-- Implement receipt reversal.
-- Add purchasing history and filters.
-
-### Deliverables
-
-- Users can create purchase orders.
-- Orders can be partially received.
-- Posting a receipt increases stock exactly once.
-- Draft orders and draft receipts do not change stock.
-- Outstanding quantities remain correct.
-
-### Exit criteria
-
-The purchase order → partial receipt → completed receipt workflow passes end-to-end tests.
-
-## 10. Phase 6 — Sales, Issues, Adjustments, and Transfers
-
-### Tasks
-
-- Implement draft and posted sales.
-- Implement non-sale stock issues.
-- Implement stock adjustments with reasons.
-- Implement transfer drafts.
-- Implement atomic immediate transfers.
-- Add transaction confirmation dialogs.
-- Implement reversals where supported.
-- Add movement history to product and inventory pages.
-
-### Deliverables
-
-- Users can record sales and stock issues separately.
-- Stock is deducted only when the relevant transaction is posted.
-- Transfers preserve cost basis.
-- Adjustments are auditable.
-- Stock cannot become negative under the default policy.
-
-### Exit criteria
-
-All stock-changing workflows are consistent with the inventory ledger and valuation engine.
-
-## 11. Phase 7 — Dashboard, Reports, and Alerts
-
-### Tasks
-
-- Implement stock summary reports.
-- Implement low-stock filtering.
-- Implement inventory movement reports.
-- Implement inventory valuation reports.
-- Implement sales summaries.
-- Add dashboard KPIs.
-- Add low-stock alerts.
-- Add date and location filters.
-- Add report exports if included in the release scope.
-
-### Deliverables
-
-- Dashboard KPIs agree with underlying records.
-- Reports respect workspace and location permissions.
-- Inventory valuation matches the valuation engine.
-- Filters and date ranges behave consistently.
-- Empty and error states are present.
-
-### Exit criteria
-
-Report results reconcile with inventory movements and current balances for tested datasets.
-
-## 12. Phase 8 — Ziggy Intelligence
-
-Implement the initial intelligence layer after reliable transaction history is available.
-
-### Tasks
-
-- Define historical demand aggregation.
-- Identify stock-out periods that may distort sales history.
-- Implement a baseline forecasting method.
-- Add forecast generation jobs.
-- Implement stock-out risk heuristics.
-- Implement reorder-point calculations.
-- Store forecasts and recommendations.
-- Add confidence and data-quality indicators.
-- Display recommendation explanations.
-- Allow users to create draft purchase orders from recommendations.
-
-### Deliverables
-
-- Forecasts are available for eligible products.
-- Recommendations include timestamps and assumptions.
-- Insufficient historical data is clearly disclosed.
-- AI or analytics failures do not interrupt stock operations.
-- Recommendations cannot automatically post transactions.
-
-### Exit criteria
-
-Forecasts are evaluated against a baseline using historical holdout data, and all recommendation flows preserve existing purchasing controls.
-
-## 13. Phase 9 — Security and Production Readiness
-
-### Tasks
-
-- Review authorization logic.
-- Test cross-workspace access attempts.
-- Review database constraints and indexes.
-- Verify secrets management.
-- Configure production security headers.
-- Configure rate limiting.
-- Configure error monitoring and structured logs.
-- Test backup and restore procedures.
-- Review object-storage access.
-- Test migration and rollback procedures.
-- Perform responsive and accessibility checks.
-- Run production-like load tests.
-
-### Deliverables
-
-- A documented production deployment process.
-- Separate staging and production environments.
-- Tested recovery procedures.
-- Monitoring for critical transaction failures.
-- A release checklist and known-limitations register.
-
-### Exit criteria
-
-No unresolved critical security or data-integrity issues remain.
+Purchase orders and partial receipts; multiple locations, transfers, and adjustments workflow; unit conversions and weighted-average valuation; Ziggy Intelligence (doc 06); production security hardening (headers, rate limiting, backup/restore drills, load tests).
 
 ## 14. Testing Strategy
 
 ### Unit tests
 
-Test isolated calculations and business rules.
+- `stockStatus` / the low-stock rule (`quantity <= threshold`, quantity 0 = out of stock).
+- Decimal quantity arithmetic.
+- Permission evaluation (`requireRole`, nested roles, destination handling for `as=`).
+- Idempotency request hashing.
 
-Examples:
+### Integration tests (against a Neon test branch or local Postgres)
 
-- Unit conversion.
-- Weighted-average valuation.
-- Reorder-point calculations.
-- Stock availability.
-- Purchase-order state transitions.
-- Permission evaluation.
+- Posting stock in and stock out; insufficient stock rejected; rollback on failure.
+- Duplicate request with the same `Idempotency-Key` creates one movement; different payload with same key returns conflict.
+- Concurrent stock-outs on one product never go below zero.
+- Product with history cannot be deleted; product without history can.
+- Role matrix: USER/STAFF/ADMIN against each protected route and endpoint; no-membership and suspended users get nothing.
+- Cross-workspace references are rejected.
+- Dashboard summary and reports reconcile with the movement history.
 
-### Integration tests
+### End-to-end test (demo flow, if time allows)
 
-Test interactions among the API, database, and domain services.
-
-Examples:
-
-- Posting a receipt.
-- Posting a sale.
-- Reversing a movement.
-- Transferring stock.
-- Enforcing workspace isolation.
-- Handling idempotency keys.
-
-### End-to-end tests
-
-Test complete user workflows in a browser.
-
-Examples:
-
-1. Sign in.
-2. Create a workspace.
-3. Add a location.
-4. Create a product.
-5. Create a purchase order.
-6. Receive part of the order.
-7. Verify stock.
-8. Record a sale.
-9. Verify the remaining stock.
-10. Review the stock movement report.
+1. Sign in as Admin. 2. Add a category, supplier, and products. 3. Record stock in. 4. Record stock out. 5. Verify quantities. 6. Reduce a product to its threshold and see the low-stock alert. 7. Open the movement history and a report.
 
 ### Concurrency tests
 
-Simulate simultaneous operations against the same product-location balance. Verify that transactions serialize or conflict safely and that inventory never becomes inconsistent.
+Simulate simultaneous stock-outs against the same product balance and verify the second request is rejected or sees the reduced quantity.
 
-### AI evaluation tests
+### Deferred
 
-Use historical holdout data to evaluate forecast error, bias, and simulated replenishment outcomes.
+Forecast evaluation against historical holdout data, load tests, and recovery drills.
 
 ## 15. Suggested

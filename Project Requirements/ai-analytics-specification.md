@@ -1,12 +1,15 @@
 # Ziggy — AI & Analytics Specification
 
 **Document:** 06 — AI & Analytics Specification  
-**Version:** 1.0  
-**Status:** Proposed for MVP implementation
+**Version:** 1.1
+
+**Status:** **Deferred — future enhancement, not required for the college prototype**
+
+> **Scope correction.** Ziggy is an Online Inventory and Stock Management System (PRD v1.1). AI forecasting, stock-out risk estimation, and reorder recommendations are **not prerequisites** for the MVP and nothing in this document is implemented. The MVP instead includes **simple, rule-based low-stock alerts** (`available quantity <= configured threshold`, doc 03) and inventory summaries, which remain core and do not depend on this document. The principles below (advisory only, transparent, never mutates stock) are kept as the contract for any future intelligence work. References below to sales, purchase orders, receipts, transfers, and lead times describe data the MVP does not yet capture.
 
 ## 1. Purpose
 
-Ziggy Intelligence helps grocery shops, wholesalers, and distributors make better inventory decisions using historical demand, current stock, purchasing activity, and supplier lead times.
+Ziggy Intelligence would help small businesses, laboratories, and campus stores make better inventory decisions using historical demand, current stock, purchasing activity, and supplier lead times.
 
 The initial release focuses on three capabilities:
 
@@ -49,7 +52,7 @@ An LLM may explain a result, but it should not be the primary numerical forecast
 
 ## 3. Scope
 
-### Included in the MVP
+### Planned scope when built *(deferred; not in the college MVP)*
 
 - Demand summaries.
 - Forecasted demand.
