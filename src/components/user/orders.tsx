@@ -8,6 +8,7 @@ import { paymentLabel, type DemoOrder } from "@/modules/demo-store/orders";
 import { useDemoOrders } from "./store";
 import { DemoBadge, ErrorPanel, ProductImage } from "./parts";
 
+export const itemCount = (order: DemoOrder) => { const n = order.items.reduce((sum, i) => sum + i.quantity, 0); return `${n} ${n === 1 ? "item" : "items"}`; };
 const persistenceNote = "Demo orders are saved only in this browser for your account. Clearing site data or using another device will not show them. They are not operational records and never change real stock.";
 
 export function OrdersScreen() {
@@ -18,7 +19,7 @@ export function OrdersScreen() {
     {failed ? <ErrorPanel message="We could not confirm your account, so your orders cannot be shown. Refresh the page or sign in again." />
       : !ready ? <p role="status" className="py-8 text-mute">Loading your orders…</p>
       : !orders.length ? <div className="mt-6 rounded-md border border-dashed border-hairline bg-canvas px-6 py-14 text-center"><ReceiptText className="mx-auto size-10 text-mute" aria-hidden /><h2 className="mt-3 text-heading-md text-ink">No orders yet</h2><p className="mt-2 text-body-sm text-mute">Place an order from the shop and it will show up here.</p><Link href="/inventory" className={`${buttonClass} mt-5`}>Go to the shop</Link></div>
-      : <ul className="mt-6 space-y-3">{orders.map(order => <li key={order.ref}><Link href={`/my-orders/${order.ref}`} className="flex flex-wrap items-center justify-between gap-3 rounded-md bg-canvas p-4 hover:bg-secondary-bg"><span><span className="block text-body-md font-semibold text-ink">{order.ref}</span><span className="block text-caption text-mute">{new Date(order.createdAt).toLocaleString()} · {order.items.reduce((n, i) => n + i.quantity, 0)} items · {paymentLabel(order.method)}</span></span><span className="text-right"><span className="block text-body-md font-semibold text-ink">{formatInr(order.total)}</span><span className="block text-caption text-success-deep">Payment simulated</span></span></Link></li>)}</ul>}
+      : <ul className="mt-6 space-y-3">{orders.map(order => <li key={order.ref}><Link href={`/my-orders/${order.ref}`} className="flex flex-wrap items-center justify-between gap-3 rounded-md bg-canvas p-4 hover:bg-secondary-bg"><span><span className="block text-body-md font-semibold text-ink">{order.ref}</span><span className="block text-caption text-mute">{new Date(order.createdAt).toLocaleString()} · {itemCount(order)} · {paymentLabel(order.method)}</span></span><span className="text-right"><span className="block text-body-md font-semibold text-ink">{formatInr(order.total)}</span><span className="block text-caption text-success-deep">Payment simulated</span></span></Link></li>)}</ul>}
   </>;
 }
 

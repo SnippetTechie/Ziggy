@@ -5,6 +5,7 @@ import { PackageSearch, ReceiptText, ShoppingCart } from "lucide-react";
 import { useRemote, Field, inputClass, buttonClass, secondaryClass } from "@/components/inventory/ui";
 import type { CatalogCategory, CatalogItem } from "@/modules/demo-store/catalog";
 import { formatInr } from "@/modules/demo-store/money";
+import { itemCount } from "./orders";
 import { paymentLabel } from "@/modules/demo-store/orders";
 import { useCart, useDemoOrders } from "./store";
 import { Availability, CardSkeleton, DemoBanner, ErrorPanel, Price, ProductImage } from "./parts";
@@ -26,6 +27,7 @@ export function UserCatalogue() {
   const filtered = !!search || !!categoryId || stock !== "all";
 
   return <>
+    <title>Shop · Ziggy</title>
     <div className="flex flex-wrap items-start justify-between gap-4">
       <div><h1 className="text-heading-xl text-ink">Shop</h1><p className="mt-2 max-w-2xl text-body-sm text-mute">Browse products, check what is in stock and try the simulated checkout.</p></div>
       <Link href="/cart" className={`${secondaryClass} gap-2`}><ShoppingCart className="size-4" aria-hidden />View cart{cart.count > 0 && <span className="rounded-full bg-primary px-2 py-0.5 text-caption font-bold text-on-primary">{cart.count}</span>}</Link>
@@ -84,5 +86,5 @@ function RecentOrders() {
   if (!ready) return null;
   return <section aria-labelledby="recent-orders" className="mt-10"><div className="flex items-center justify-between gap-3"><h2 id="recent-orders" className="flex items-center gap-2 text-heading-lg text-ink"><ReceiptText className="size-5" aria-hidden />Recent orders</h2>{orders.length > 0 && <Link href="/my-orders" className="text-body-sm font-semibold underline">View all</Link>}</div>
     {!orders.length ? <p className="mt-3 rounded-md border border-dashed border-hairline bg-canvas p-5 text-body-sm text-mute">No orders yet. Add something from the shop to your cart and try the simulated checkout.</p>
-      : <ul className="mt-3 grid gap-3 md:grid-cols-3">{orders.slice(0, 3).map(order => <li key={order.ref}><Link href={`/my-orders/${order.ref}`} className="block rounded-md bg-canvas p-4 hover:bg-secondary-bg"><span className="text-body-sm font-semibold text-ink">{order.ref}</span><span className="mt-1 block text-caption text-mute">{new Date(order.createdAt).toLocaleString()} · {order.items.reduce((n, i) => n + i.quantity, 0)} items · {paymentLabel(order.method)}</span><span className="mt-2 block text-body-md font-semibold text-ink">{formatInr(order.total)}</span></Link></li>)}</ul>}</section>;
+      : <ul className="mt-3 grid gap-3 md:grid-cols-3">{orders.slice(0, 3).map(order => <li key={order.ref}><Link href={`/my-orders/${order.ref}`} className="block rounded-md bg-canvas p-4 hover:bg-secondary-bg"><span className="text-body-sm font-semibold text-ink">{order.ref}</span><span className="mt-1 block text-caption text-mute">{new Date(order.createdAt).toLocaleString()} · {itemCount(order)} · {paymentLabel(order.method)}</span><span className="mt-2 block text-body-md font-semibold text-ink">{formatInr(order.total)}</span></Link></li>)}</ul>}</section>;
 }
