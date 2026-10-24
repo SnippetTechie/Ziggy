@@ -27,16 +27,16 @@ export function UserCatalogue() {
 
   return <>
     <div className="flex flex-wrap items-start justify-between gap-4">
-      <div><h1 className="text-heading-xl text-ink">Inventory</h1><p className="mt-2 max-w-2xl text-body-sm text-mute">Browse products, check availability and try the demo checkout.</p></div>
-      <Link href="/cart" className={`${secondaryClass} gap-2`}><ShoppingCart className="size-4" aria-hidden />Cart{cart.count > 0 && <span className="rounded-full bg-primary px-2 py-0.5 text-caption font-bold text-on-primary">{cart.count}</span>}</Link>
+      <div><h1 className="text-heading-xl text-ink">Shop</h1><p className="mt-2 max-w-2xl text-body-sm text-mute">Browse products, check what is in stock and try the simulated checkout.</p></div>
+      <Link href="/cart" className={`${secondaryClass} gap-2`}><ShoppingCart className="size-4" aria-hidden />View cart{cart.count > 0 && <span className="rounded-full bg-primary px-2 py-0.5 text-caption font-bold text-on-primary">{cart.count}</span>}</Link>
     </div>
 
     <div role="group" aria-label="Catalog source" className="mt-6 inline-flex rounded-md bg-surface-card p-1">
-      {([["demo", "Demo store"], ["live", "Live inventory"]] as const).map(([value, label]) => <button key={value} type="button" aria-pressed={source === value} onClick={() => switchSource(value)} className={`min-h-11 rounded-md px-5 text-body-sm font-semibold ${source === value ? "bg-ink text-on-dark" : "text-charcoal hover:bg-secondary-bg"}`}>{label}</button>)}
+      {([["demo", "Demo shop"], ["live", "In-store stock"]] as const).map(([value, label]) => <button key={value} type="button" aria-pressed={source === value} onClick={() => switchSource(value)} className={`min-h-11 rounded-md px-5 text-body-sm font-semibold ${source === value ? "bg-ink text-on-dark" : "text-charcoal hover:bg-secondary-bg"}`}>{label}</button>)}
     </div>
     <div className="mt-4">{source === "demo"
-      ? <DemoBanner>Sample catalog. Products, prices and stock here are fictional demo data and are separate from your real inventory. Checkout is simulated.</DemoBanner>
-      : <p className="rounded-md border border-hairline bg-canvas p-4 text-body-sm text-body">Live inventory shows real availability. Selling prices are not recorded in the inventory system, so these products cannot be added to the demo cart.</p>}</div>
+      ? <DemoBanner>Sample shop. Products, prices and stock here are fictional demo data, separate from the store&rsquo;s real stock. Payment is simulated: no money is charged.</DemoBanner>
+      : <p className="rounded-md border border-hairline bg-canvas p-4 text-body-sm text-body">In-store stock shows what the store really has on its shelves. Prices are not recorded yet, so these items can&rsquo;t be added to the demo cart.</p>}</div>
 
     <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
       <Field label="Search"><input className={inputClass} type="search" value={searchInput} placeholder="Name, SKU or keyword" onChange={event => setSearchInput(event.target.value)} /></Field>
@@ -74,15 +74,15 @@ export function UserCatalogue() {
 
 function EmptyCatalog({ source, filtered, total, onDemo, onClear }: { source: string; filtered: boolean; total: number; onDemo: () => void; onClear: () => void }) {
   return <div className="mt-6 rounded-md border border-dashed border-hairline bg-canvas px-6 py-14 text-center"><PackageSearch className="mx-auto size-10 text-mute" aria-hidden />
-    <h2 className="mt-3 text-heading-md text-ink">{filtered ? "No products match your filters" : source === "live" ? "No live products yet" : "No products to show"}</h2>
-    <p className="mx-auto mt-2 max-w-md text-body-sm text-mute">{filtered ? `Try a different search or clear the filters (${total} products in this catalog).` : source === "live" ? "An Admin has not added inventory yet. You can try the shopping flow with the demo store." : "The demo catalog is empty."}</p>
-    <div className="mt-5 flex flex-wrap justify-center gap-3">{filtered && <button type="button" className={buttonClass} onClick={onClear}>Clear filters</button>}{source === "live" && !filtered && <button type="button" className={buttonClass} onClick={onDemo}>Open the demo store</button>}</div></div>;
+    <h2 className="mt-3 text-heading-md text-ink">{filtered ? "No products match your filters" : source === "live" ? "Nothing in stock listed yet" : "No products to show"}</h2>
+    <p className="mx-auto mt-2 max-w-md text-body-sm text-mute">{filtered ? `Try a different search or clear the filters (${total} products in this catalog).` : source === "live" ? "No products have been added to the store yet. You can try the shopping flow in the demo shop." : "The demo catalog is empty."}</p>
+    <div className="mt-5 flex flex-wrap justify-center gap-3">{filtered && <button type="button" className={buttonClass} onClick={onClear}>Clear filters</button>}{source === "live" && !filtered && <button type="button" className={buttonClass} onClick={onDemo}>Open the demo shop</button>}</div></div>;
 }
 
 function RecentOrders() {
   const { orders, ready } = useDemoOrders();
   if (!ready) return null;
-  return <section aria-labelledby="recent-orders" className="mt-10"><div className="flex items-center justify-between gap-3"><h2 id="recent-orders" className="flex items-center gap-2 text-heading-lg text-ink"><ReceiptText className="size-5" aria-hidden />Recent demo orders</h2>{orders.length > 0 && <Link href="/my-orders" className="text-body-sm font-semibold underline">View all</Link>}</div>
-    {!orders.length ? <p className="mt-3 rounded-md border border-dashed border-hairline bg-canvas p-5 text-body-sm text-mute">No demo orders yet. Add something from the demo store to your cart and try the checkout.</p>
+  return <section aria-labelledby="recent-orders" className="mt-10"><div className="flex items-center justify-between gap-3"><h2 id="recent-orders" className="flex items-center gap-2 text-heading-lg text-ink"><ReceiptText className="size-5" aria-hidden />Recent orders</h2>{orders.length > 0 && <Link href="/my-orders" className="text-body-sm font-semibold underline">View all</Link>}</div>
+    {!orders.length ? <p className="mt-3 rounded-md border border-dashed border-hairline bg-canvas p-5 text-body-sm text-mute">No orders yet. Add something from the shop to your cart and try the simulated checkout.</p>
       : <ul className="mt-3 grid gap-3 md:grid-cols-3">{orders.slice(0, 3).map(order => <li key={order.ref}><Link href={`/my-orders/${order.ref}`} className="block rounded-md bg-canvas p-4 hover:bg-secondary-bg"><span className="text-body-sm font-semibold text-ink">{order.ref}</span><span className="mt-1 block text-caption text-mute">{new Date(order.createdAt).toLocaleString()} · {order.items.reduce((n, i) => n + i.quantity, 0)} items · {paymentLabel(order.method)}</span><span className="mt-2 block text-body-md font-semibold text-ink">{formatInr(order.total)}</span></Link></li>)}</ul>}</section>;
 }

@@ -31,7 +31,7 @@ export function CheckoutScreen() {
   if (cart.failed) return <>{title}<ErrorPanel message="We could not confirm your account, so checkout is unavailable. Refresh the page or sign in again." /></>;
   if (!cart.ready || (check.loading && !placed)) return <>{title}<p role="status" className="py-8 text-mute">Preparing checkout…</p></>;
   if (placed) return <>{title}<p role="status" className="py-8 text-mute">Demo order placed. Opening your confirmation…</p></>;
-  if (!cart.lines.length) return <>{title}<div className="mt-6 rounded-md border border-dashed border-hairline bg-canvas px-6 py-14 text-center"><h2 className="text-heading-md text-ink">Your cart is empty</h2><p className="mt-2 text-body-sm text-mute">Add products before checking out.</p><Link href="/inventory" className={`${buttonClass} mt-5`}>Browse products</Link></div></>;
+  if (!cart.lines.length) return <>{title}<div className="mt-6 rounded-md border border-dashed border-hairline bg-canvas px-6 py-14 text-center"><h2 className="text-heading-md text-ink">Your cart is empty</h2><p className="mt-2 text-body-sm text-mute">Add products before checking out.</p><Link href="/inventory" className={`${buttonClass} mt-5`}>Continue shopping</Link></div></>;
   const result = check.result;
   if (!result) return <>{title}<ErrorPanel message={check.error || "Could not verify your cart."} onRetry={check.refresh} /></>;
   const blocked = result.blocking || result.priceChanged;
@@ -72,7 +72,7 @@ export function CheckoutScreen() {
         {failure && <div role="alert" className="mt-4 rounded-md bg-error-pale p-3 text-body-sm text-error"><p className="font-semibold">Payment not completed</p><p className="mt-1">{failure}</p></div>}
         <button type="button" className={`${buttonClass} mt-4 w-full`} disabled={busy || blocked} aria-busy={busy} onClick={place}>{busy ? "Processing demo payment…" : failure ? "Retry demo payment" : `Place demo order · ${formatInr(result.total)}`}</button>
         <Link href="/cart" className={`${secondaryClass} mt-3 w-full`}>Back to cart</Link>
-        <p className="mt-3 text-caption text-mute">Placing a demo order does not change real inventory or create stock movements.</p>
+        <p className="mt-3 text-caption text-mute">A demo order is simulated: it does not charge anything, change the store&rsquo;s real stock or create stock movements.</p>
       </aside>
     </div>
   </>;

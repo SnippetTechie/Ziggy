@@ -13,7 +13,7 @@ export function ShopProductDetail({ productId }: { productId: string }) {
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState("");
   const item = resource.data;
-  const back = <Link href="/inventory" className="inline-flex min-h-11 items-center gap-2 text-body-sm font-semibold underline"><ArrowLeft className="size-4" aria-hidden />Back to inventory</Link>;
+  const back = <Link href="/inventory" className="inline-flex min-h-11 items-center gap-2 text-body-sm font-semibold underline"><ArrowLeft className="size-4" aria-hidden />Back to shop</Link>;
 
   if (resource.loading) return <>{back}<div role="status" aria-label="Loading product" className="mt-4 grid animate-pulse gap-8 md:grid-cols-2"><div className="aspect-[4/3] rounded-md bg-surface-card" /><div className="space-y-3"><div className="h-8 w-2/3 rounded bg-surface-card" /><div className="h-5 w-1/3 rounded bg-surface-card" /><div className="h-24 rounded bg-surface-card" /></div></div></>;
   if (resource.error || !item) return <>{back}<ErrorPanel message={resource.error || "Product not found."} onRetry={resource.refresh} /></>;
@@ -40,7 +40,7 @@ export function ShopProductDetail({ productId }: { productId: string }) {
           {inCart > 0 && <p className="text-body-sm text-mute">{inCart} in your cart.</p>}
           <p role="status" className="text-body-sm text-success-deep">{added}</p>
           {inCart > 0 && <Link href="/cart" className={`${secondaryClass} gap-2 self-start`}><ShoppingCart className="size-4" aria-hidden />Go to cart</Link>}
-        </> : <p className="rounded-md border border-hairline bg-canvas p-4 text-body-sm text-body">Live inventory item. Selling prices are not recorded in the inventory system, so it cannot be added to the demo cart.</p>}
+        </> : <p className="rounded-md border border-hairline bg-canvas p-4 text-body-sm text-body">In-store item. Prices are not recorded yet, so it can&rsquo;t be added to the demo cart.</p>}
       </div>
     </div>
   </>;

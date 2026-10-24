@@ -15,12 +15,12 @@ export function CartScreen() {
   const check = useValidatedCart(cart.lines, cart.ready);
   if (cart.failed) return <><h1 className="text-heading-xl text-ink">Your cart</h1><ErrorPanel message="We could not confirm your account, so the cart cannot be loaded. Refresh the page or sign in again." /></>;
   if (!cart.ready) return <><h1 className="text-heading-xl text-ink">Your cart</h1><p role="status" className="py-8 text-mute">Loading your cart…</p></>;
-  if (!cart.lines.length) return <><h1 className="text-heading-xl text-ink">Your cart</h1><div className="mt-6 rounded-md border border-dashed border-hairline bg-canvas px-6 py-14 text-center"><ShoppingBag className="mx-auto size-10 text-mute" aria-hidden /><h2 className="mt-3 text-heading-md text-ink">Your cart is empty</h2><p className="mt-2 text-body-sm text-mute">Add products from the demo store to try the checkout.</p><Link href="/inventory" className={`${buttonClass} mt-5`}>Browse products</Link></div></>;
+  if (!cart.lines.length) return <><h1 className="text-heading-xl text-ink">Your cart</h1><div className="mt-6 rounded-md border border-dashed border-hairline bg-canvas px-6 py-14 text-center"><ShoppingBag className="mx-auto size-10 text-mute" aria-hidden /><h2 className="mt-3 text-heading-md text-ink">Your cart is empty</h2><p className="mt-2 text-body-sm text-mute">Add products from the shop to try the simulated checkout.</p><Link href="/inventory" className={`${buttonClass} mt-5`}>Continue shopping</Link></div></>;
   const result = check.result;
   const blocked = !result || result.blocking || result.priceChanged;
   return <>
     <div className="flex flex-wrap items-center justify-between gap-3"><h1 className="text-heading-xl text-ink">Your cart</h1><button type="button" className={secondaryClass} onClick={() => cart.clear()}>Clear cart</button></div>
-    <p className="mt-2 text-body-sm text-mute"><DemoBadge /> Items come from the demo store. Prices and availability are re-checked each time you open the cart and again at checkout.</p>
+    <p className="mt-2 text-body-sm text-mute"><DemoBadge /> Items come from the demo shop. Prices and availability are re-checked each time you open the cart and again at checkout.</p>
     {check.error && <ErrorPanel message={check.error} onRetry={check.refresh} />}
     {!result && !check.error && <p role="status" className="py-8 text-mute">Checking prices and availability…</p>}
     {result && <div className="mt-6 grid items-start gap-6 lg:grid-cols-[1fr_340px]">
