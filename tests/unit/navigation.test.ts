@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { adminNav, appNav } from "../../src/components/layout/nav-config";
-import { canAccess, landings } from "../../src/modules/access/policy";
+import { canAccess, landings, viewRole } from "../../src/modules/access/policy";
 
 const exists = (href: string) => [`src/app/(app)${href}/page.tsx`, `src/app${href}/page.tsx`].some(p => existsSync(p));
 const items = [...appNav, ...adminNav].flatMap(section => section.items);
@@ -27,5 +27,11 @@ describe("active navigation", () => {
       expect(canAccess("USER", item.minimum)).toBe(false);
     }
     for (const item of items.filter(i => i.minimum === "STAFF")) expect(canAccess("USER", item.minimum)).toBe(false);
+  });
+  it("lets an admin browse as a customer but never exceeds the real role", () => {
+    expect(viewRole("ADMIN", "USER")).toBe("USER");
+    expect(viewRole("ADMIN", undefined)).toBe("ADMIN");
+    expect(viewRole("USER", "ADMIN")).toBe("USER");
+    expect(viewRole("STAFF", "junk")).toBe("STAFF");
   });
 });
