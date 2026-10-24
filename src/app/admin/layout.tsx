@@ -1,17 +1,9 @@
-import { Suspense } from "react";
-import { PageLoading, RequireSignIn } from "@/components/auth/require-sign-in";
+import { Suspense, type ReactNode } from "react";
+import { requirePageRole } from "@/server/authorization";
 import { AppShell } from "@/components/layout/app-shell";
-
-/**
- * Ziggy Admin — workspace administration. Signed-in users only for now;
- * the ADMIN role check is added once workspace membership is in the database.
- */
-export default function AdminLayout({ children }: LayoutProps<"/admin">) {
-  return (
-    <AppShell variant="admin">
-      <Suspense fallback={<PageLoading />}>
-        <RequireSignIn>{children}</RequireSignIn>
-      </Suspense>
-    </AppShell>
-  );
+import { PageLoading } from "@/components/auth/require-sign-in";
+async function AdminLayout({ children }: { children: ReactNode }) {
+  const access = await requirePageRole("ADMIN");
+  return <AppShell variant="admin" role={access.role}>{children}</AppShell>;
 }
+export default function Layout({ children }: { children: ReactNode }) { return <Suspense fallback={<PageLoading />}><AdminLayout>{children}</AdminLayout></Suspense>; }

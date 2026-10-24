@@ -3,4 +3,4 @@
  * (Project Requirements/database-schema.md), starting with workspaces,
  * users, workspace_members, and locations in Phase 2.
  */
-export {};
+export * from "./schema/index";

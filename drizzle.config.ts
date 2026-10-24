@@ -6,7 +6,7 @@ config({ path: [".env.local", ".env"] });
 // Migrations run over the DIRECT (unpooled) connection; the pooler does not
 // support the session state migration tools rely on.
 export default defineConfig({
-  schema: "./src/server/db/schema.ts",
+  schema: "./src/server/db/schema/index.ts",
   out: "./drizzle/migrations",
   dialect: "postgresql",
   dbCredentials: {

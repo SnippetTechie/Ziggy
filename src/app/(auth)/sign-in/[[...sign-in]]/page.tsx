@@ -1,14 +1,4 @@
-import type { Metadata } from "next";
-import { SignIn } from "@clerk/nextjs";
 import { Suspense } from "react";
-
-export const metadata: Metadata = { title: "Sign in" };
-
-// Clerk's catch-all sign-in route. Suspense is required with cacheComponents.
-export default function SignInPage() {
-  return (
-    <Suspense>
-      <SignIn />
-    </Suspense>
-  );
-}
+import { Login } from "@/components/auth/login";
+export const metadata = { title: "Sign in" };
+export default function Page() { return <Suspense fallback={<p role="status">Loading sign-in…</p>}><Login /></Suspense>; }

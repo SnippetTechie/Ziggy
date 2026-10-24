@@ -1,5 +1,4 @@
-import "server-only";
-import { Pool } from "@neondatabase/serverless";
+import { Pool, neonConfig } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-serverless";
 import * as schema from "./schema";
 
@@ -10,12 +9,9 @@ import * as schema from "./schema";
  * supports interactive transactions — required for stock posting, where
  * balances must be locked and updated atomically (doc 05 §10).
  */
-const connectionString = process.env.DATABASE_URL;
-if (!connectionString) {
-  throw new Error("DATABASE_URL is not set. Run `npx neon@latest env pull` or see .env.example.");
-}
-
-const pool = new Pool({ connectionString });
-
+// Native WebSocket is available in Node 22+ (the project uses Node 24).
+neonConfig.webSocketConstructor = globalThis.WebSocket;
+export const pool = new Pool({ connectionString: process.env.DATABASE_URL, max: 8, ...(process.env.TEST_SCHEMA ? { options: `-c search_path=${process.env.TEST_SCHEMA}` } : {}) });
 export const db = drizzle({ client: pool, schema });
 export type Db = typeof db;
+export type Transaction = Parameters<Parameters<Db["transaction"]>[0]>[0];

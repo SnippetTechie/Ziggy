@@ -1,98 +1,33 @@
-import {
-  ArrowLeftRight,
-  BarChart3,
-  Boxes,
-  Building2,
-  ClipboardList,
-  Database,
-  History,
-  LayoutDashboard,
-  type LucideIcon,
-  Package,
-  Ruler,
-  Settings,
-  ShoppingBag,
-  ShoppingCart,
-  SlidersHorizontal,
-  Sparkles,
-  Store,
-  Truck,
-  Users,
-  Warehouse,
-} from "lucide-react";
-
-export type NavItem = {
-  label: string;
-  href: string;
-  icon: LucideIcon;
-};
-
-export type NavSection = {
-  title?: string;
-  items: NavItem[];
-};
-
-/** Ziggy — day-to-day operations (doc 04 §2). */
+import { BarChart3, Boxes, ClipboardList, History, LayoutDashboard, Package, Settings, SlidersHorizontal, Tags, Truck, Users, ArrowDownToLine, ArrowUpFromLine, type LucideIcon } from "lucide-react";
+import type { Role } from "@/modules/access/policy";
+export type NavItem = { label: string; href: string; icon: LucideIcon; minimum: Role };
+export type NavSection = { title?: string; items: NavItem[] };
 export const appNav: NavSection[] = [
-  {
-    items: [{ label: "Dashboard", href: "/dashboard", icon: LayoutDashboard }],
-  },
-  {
-    title: "Stock",
-    items: [
-      { label: "Inventory", href: "/inventory", icon: Boxes },
-      { label: "Products", href: "/products", icon: Package },
-      { label: "Transfers", href: "/transfers", icon: ArrowLeftRight },
-    ],
-  },
-  {
-    title: "Buy & sell",
-    items: [
-      { label: "Customer orders", href: "/orders", icon: ShoppingBag },
-      { label: "Purchasing", href: "/purchasing", icon: ShoppingCart },
-      { label: "Sales & issues", href: "/sales", icon: ClipboardList },
-      { label: "Suppliers", href: "/suppliers", icon: Truck },
-    ],
-  },
-  {
-    title: "Insights",
-    items: [
-      { label: "Reports", href: "/reports", icon: BarChart3 },
-      { label: "Ziggy Intelligence", href: "/intelligence", icon: Sparkles },
-    ],
-  },
-  {
-    items: [{ label: "Settings", href: "/settings", icon: Settings }],
-  },
+  { title: "Workspace", items: [
+    { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard, minimum: "STAFF" },
+    { label: "Inventory", href: "/inventory", icon: Boxes, minimum: "USER" },
+  ] },
+  { title: "Stock", items: [
+    { label: "Stock in", href: "/purchasing", icon: ArrowDownToLine, minimum: "STAFF" },
+    { label: "Stock out", href: "/issues", icon: ArrowUpFromLine, minimum: "STAFF" },
+    { label: "Movement history", href: "/movements", icon: ClipboardList, minimum: "STAFF" },
+  ] },
+  { title: "Catalogue", items: [
+    { label: "Products", href: "/products", icon: Package, minimum: "ADMIN" },
+    { label: "Categories", href: "/categories", icon: Tags, minimum: "ADMIN" },
+    { label: "Suppliers", href: "/suppliers", icon: Truck, minimum: "STAFF" },
+  ] },
+  { items: [
+    { label: "Reports", href: "/reports", icon: BarChart3, minimum: "ADMIN" },
+    { label: "My account", href: "/settings", icon: Settings, minimum: "USER" },
+  ] },
 ];
-
-/** Ziggy Admin — workspace administration (doc 04 §2). ADMIN role only. */
 export const adminNav: NavSection[] = [
-  {
-    items: [{ label: "Overview", href: "/admin", icon: LayoutDashboard }],
-  },
-  {
-    title: "Business",
-    items: [
-      { label: "Workspace profile", href: "/admin/workspace", icon: Store },
-      { label: "Branches & warehouses", href: "/admin/locations", icon: Warehouse },
-      { label: "Team & roles", href: "/admin/team", icon: Users },
-    ],
-  },
-  {
-    title: "Configuration",
-    items: [
-      { label: "Units & product settings", href: "/admin/units", icon: Ruler },
-      { label: "Operational preferences", href: "/admin/preferences", icon: SlidersHorizontal },
-    ],
-  },
-  {
-    title: "Governance",
-    items: [
-      { label: "Audit history", href: "/admin/audit", icon: History },
-      { label: "Data & account", href: "/admin/data", icon: Database },
-    ],
-  },
+  { title: "Administration", items: [
+    { label: "Overview", href: "/admin", icon: LayoutDashboard, minimum: "ADMIN" },
+    { label: "Team & access", href: "/admin/team", icon: Users, minimum: "ADMIN" },
+    { label: "Preferences", href: "/admin/preferences", icon: SlidersHorizontal, minimum: "ADMIN" },
+    { label: "Audit history", href: "/admin/audit", icon: History, minimum: "ADMIN" },
+  ] },
+  ...appNav,
 ];
-
-export const workspaceIcon = Building2;

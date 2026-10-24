@@ -1,17 +1,4 @@
-import type { Metadata } from "next";
-import { ListPage } from "@/components/wireframe";
-
-export const metadata: Metadata = { title: "Suppliers" };
-
-export default function Page() {
-  return (
-    <ListPage
-      title="Suppliers"
-      description="Supplier contacts, lead times, and purchasing history."
-      primaryAction="Add supplier"
-      chips={["Active", "Inactive"]}
-      columns={["Supplier", "Contact", "Phone", "Email", "Open POs", "Avg. lead time"]}
-      numericFrom={4}
-    />
-  );
-}
+import { ProtectedPage } from "@/components/inventory/protected-page";
+import { CatalogueScreen } from "@/components/inventory/catalogue";
+export const metadata = { title: "Suppliers" };
+export default function Page() { return <ProtectedPage minimum="STAFF">{access => <CatalogueScreen kind="suppliers" canManage={access.role === "ADMIN"} />}</ProtectedPage>; }

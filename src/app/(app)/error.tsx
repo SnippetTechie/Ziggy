@@ -1,0 +1,2 @@
+"use client";
+export default function ErrorPage({ reset }: { reset: () => void }) { return <div role="alert" className="rounded-md bg-error-pale p-6 text-error"><h2 className="text-heading-lg">Unable to load this page</h2><p className="mt-3">Try again. If the problem continues, contact your Admin.</p><button className="mt-4 rounded-md border px-4 py-2 font-bold" onClick={reset}>Try again</button></div>; }

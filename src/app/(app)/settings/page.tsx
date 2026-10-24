@@ -1,23 +1,3 @@
-import type { Metadata } from "next";
-import { Card, PageHeader, Placeholder } from "@/components/wireframe";
-
-export const metadata: Metadata = { title: "Settings" };
-
-export default function SettingsPage() {
-  return (
-    <>
-      <PageHeader title="Settings" description="Your personal profile and preferences." />
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <Card title="Profile">
-          <Placeholder label="Name, email, avatar" hint="Managed through Google sign-in (Clerk)" />
-        </Card>
-        <Card title="Preferences">
-          <Placeholder label="Default location, notifications" />
-        </Card>
-        <Card title="My workspaces" className="lg:col-span-2">
-          <Placeholder label="Workspaces you belong to, with your role in each" height="h-32" />
-        </Card>
-      </div>
-    </>
-  );
-}
+import { ProtectedPage } from "@/components/inventory/protected-page";
+import { AccountScreen } from "@/components/inventory/admin";
+export default function Page() { return <ProtectedPage minimum="USER">{() => <AccountScreen />}</ProtectedPage>; }

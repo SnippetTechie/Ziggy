@@ -1,5 +1,7 @@
 # TEAM_HANDOFF.md
 
+> **Implementation update (2026-10-24):** `feat/inventory-mvp` now implements the role/access helpers, safe post-login routing, catalogue CRUD, stock posting, live inventory/dashboard screens, reports/CSV, team access and preferences. Historical "planned/not built" statements below describe the starting point and have not all been rewritten. See README.md and docs/DATA_ENTRY.md for current usage and verification. The existing Neon database has externally-created migrations; local initial migrations must not be applied over its public schema. The guarded migration runner refuses unknown histories. No real inventory rows have been supplied/imported. First-Admin provisioning for a fresh database and full interactive Google/browser testing remain setup work; the supplied database already has the requested active Admin.
+
 Single page for the three-person team. If this file disagrees with another doc, fix the other doc — this is the shortest statement of the corrected plan. Detailed rules live in `Project Requirements/` (see [README](README.md#where-things-are)).
 
 > **Scope correction.** Our required project is an **Online Inventory and Stock Management System** for small businesses, college laboratories, or campus stores. We previously added an ecommerce storefront by mistake. The consumer storefront, cart, checkout, delivery, shopper accounts, and customer-order fulfilment are **out of scope**; the earlier "consumer storefront" scope change in the PRD is **superseded**.

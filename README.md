@@ -1,63 +1,37 @@
 # Ziggy
 
-**Online Inventory and Stock Management System** for small businesses, college laboratories, and campus stores.
+Online inventory and stock management for small businesses, college laboratories and campus stores.
 
-> **Status:** Phase 1 — clickable wireframes with placeholder data only. **Working:** Clerk sign-in (Google), signed-in check on app pages. **Not built yet:** roles/access control, database tables, API routes, stock logic.
->
-> **Scope correction:** an earlier version added a consumer storefront (shop, cart, checkout, delivery). That was a misreading of the problem statement and is **superseded**; the shop and customer-order wireframes still in the repo are obsolete and will be removed in a focused cleanup.
->
-> **Team: start with [`TEAM_HANDOFF.md`](TEAM_HANDOFF.md).**
+The application includes Clerk sign-in, server-checked USER/STAFF/ADMIN membership, product/category/supplier management, stock in/out, low-stock alerts, movement history, reports/CSV, team access and preferences. Screens use Neon data. New signups receive no workspace access until an Admin approves them. The obsolete ecommerce and deferred feature routes are unavailable.
 
-## MVP
+## Run locally
 
-Demonstration: **Admin login → add products → record stock in/out → quantities update → low-stock alerts → reports.**
+Use Node 24. Install with `npm ci`, copy `.env.example` to `.env.local`, fill in Neon and Clerk credentials, and run `npm run dev`. Open http://localhost:3000.
 
-- Add, edit, view, and delete products (archive when they have history).
-- Manage categories and suppliers.
-- Record stock purchases (stock in) and issues (stock out); quantities update automatically.
-- Low-stock alerts (`quantity <= threshold`), inventory summaries, and transaction history.
+Secrets stay in the Git-ignored `.env.local`. Enable Google in your Clerk application's social connections. Google OAuth is configured in the supplied development instance, but interactive Google sign-in must still be tested in the browser.
 
-Deferred: purchase-order workflows, multiple warehouses and transfers, unit conversions, costing/valuation, AI forecasting.
+## Add your real data
 
-## Dashboards (one app, three role-based views)
+Sign in with an active Admin account and open **Products → Add product**. Add categories and suppliers first if needed. Enter the actual opening quantity to create its initial stock movement. Later changes use **Stock in** or **Stock out**; quantity is never edited directly. See [Data entry instructions](docs/DATA_ENTRY.md).
 
-| Role | Dashboard | Start at | For |
-|---|---|---|---|
-| `USER` *(proposed)* | Inventory viewer — default | `/inventory` | Search products, check availability (read-only) |
-| `STAFF` | Operations | `/dashboard` | Record stock in/out, review movements and low stock |
-| `ADMIN` | Administration | `/admin` | Manage products, categories, suppliers, members; alerts and reports |
+| Role | Landing | Access |
+|---|---|---|
+| USER | `/inventory` | Read products and stock availability |
+| STAFF | `/dashboard` | Stock in/out, movements, supplier viewing and alerts |
+| ADMIN | `/admin` | All operations, catalogue management, team access and reports |
 
-Planned entry: `/` is the inventory entry page (no private data when signed out); `/sign-in` offers **Login as: User | Staff | Admin** above Google sign-in. The selector only requests a destination — the server checks the real role. Clerk sign-in is connected; the "Login as" selector and role routing are not built yet.
+## Database safety
 
-## Getting started
+Drizzle schema is in `src/server/db/schema/`; stock operations are shared transactional services with decimal arithmetic, row locking, idempotency and immutable history.
 
-```bash
-npm install
-cp .env.example .env.local   # then fill in DATABASE_URL / DATABASE_URL_UNPOOLED
-npm run dev                  # http://localhost:3000
-```
+The supplied live database was initialized outside this checkout and has a different migration history. **Do not replace its tables or apply the local initial migrations to public.** The guarded `db:migrate` command rejects unknown migration hashes. Coordinate the existing migration baseline with the repository owner before future deployment migrations. The existing workspace and Admin were preserved; no real product rows were invented or imported.
 
-**Database:** the Neon project is `ziggy` (`old-wave-42339493`, region `aws-ap-southeast-1`). Ask the project owner for access, then run:
+## Verification
 
-```bash
-npx neon@latest login
-npx neon@latest link --project-id old-wave-42339493 -y   # writes .env.local
-```
+- `npm test` — unit and API authorization tests; database tests skip unless run through the dedicated runner.
+- `npm run test:db` — creates a disposable schema over the direct Neon connection, tests local migrations and stock transactions, then removes only that schema.
+- `npm run db:check` — checks migrations in a private schema inside a transaction and rolls everything back.
+- `npm run lint`, `npm run typecheck`, `npm run build` — static checks and production build.
+- `npm run db:generate`, `npm run db:migrate`, `npm run db:studio` — migration tools (respect the baseline warning above).
 
-If the database host fails to resolve (`REFUSED` / `ENOTFOUND`), your network's DNS is blocking `*.aws.neon.tech`. Switch your DNS to `1.1.1.1` / `8.8.8.8`.
-
-## Where things are
-
-- [`TEAM_HANDOFF.md`](TEAM_HANDOFF.md) — corrected MVP, permissions matrix, route/API contracts, ownership, checklist, obsolete code list.
-- `Project Requirements/` — PRD and specs (architecture, schema, UI/UX, API & security, deferred AI, implementation plan). Each doc starts with a scope-correction note; *deferred* sections are reference only.
-- `CLAUDE.md` — project rules and conventions, also used by Claude Code.
-- `DESIGN.md` — visual design system (colors, type, components).
-- `src/app/` — routes: `(app)` = USER/STAFF/ADMIN pages, `admin` = admin pages, `(auth)` = sign-in. `shop/` and `(app)/orders/` are **obsolete**.
-- `src/components/wireframe/` — placeholder building blocks; replace them as real features land.
-- `src/server/db/` — Drizzle + Neon client; schema is empty until the foundation phase.
-
-## Scripts
-
-`npm run dev` · `build` · `lint` · `typecheck` · `db:generate` · `db:migrate` · `db:studio`
-
-Installed: Next.js 16, React 19, Tailwind 4, Drizzle, Neon client, Clerk (`@clerk/nextjs`). Planned (not installed): Zod, shadcn/ui, a decimal library, Vitest, Playwright.
+Full scope and permissions: [TEAM_HANDOFF.md](TEAM_HANDOFF.md). Deferred: AI, ecommerce, multiple warehouses/transfers, valuation, image uploads, movement reversals and advanced purchasing.
