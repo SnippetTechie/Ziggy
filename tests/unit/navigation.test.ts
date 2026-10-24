@@ -11,8 +11,8 @@ describe("active navigation", () => {
     const broken = items.filter(item => !exists(item.href)).map(item => item.href);
     expect(broken).toEqual([]);
   });
-  it("has no ecommerce or deferred links", () => {
-    for (const item of items) expect(item.href).not.toMatch(/shop|cart|checkout|orders|transfers|intelligence|select-workspace|locations|units/);
+  it("has no obsolete storefront or deferred links (the USER demo cart/checkout/my-orders routes are intentional)", () => {
+    for (const item of items) expect(item.href).not.toMatch(/^\/(shop|orders|transfers|intelligence|select-workspace|sales)|\/admin\/(locations|units|workspace|data)/);
   });
   it("sends every role to a landing page its own role may open", () => {
     for (const [role, href] of Object.entries(landings)) {
