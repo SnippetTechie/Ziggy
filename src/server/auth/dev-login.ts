@@ -60,7 +60,8 @@ export const resolveDevMember = cache(async (key: DemoKey) => {
   ensure(admin, "NO_DEV_MEMBER", "Demo sign-in needs an existing active Admin member in the database.", 500);
   if (key === "admin") return { user: admin.user, workspaceId: admin.workspaceId, locationId: admin.locationId, role: "ADMIN" as Role };
   const account = demoAccounts.user;
-  await db.insert(users).values({ email: account.email, displayName: account.name }).onConflictDoNothing();
+  // The live users.clerk_user_id column is NOT NULL, so the demo user gets a clearly non-Clerk placeholder id.
+  await db.insert(users).values({ clerkUserId: "demo-local-user", email: account.email, displayName: account.name }).onConflictDoNothing();
   const [user] = await db.select().from(users).where(eq(users.email, account.email));
   await db.insert(members).values({ workspaceId: admin.workspaceId, userId: user.id, role: "USER", status: "ACTIVE" }).onConflictDoNothing();
   const [member] = await db.select().from(members).where(sql`${members.workspaceId} = ${admin.workspaceId} and ${members.userId} = ${user.id}`);
