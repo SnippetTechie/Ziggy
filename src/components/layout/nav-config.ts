@@ -1,4 +1,4 @@
-import { BarChart3, Boxes, ClipboardList, History, LayoutDashboard, Package, Settings, SlidersHorizontal, Tags, Truck, Users, ArrowDownToLine, ArrowUpFromLine, ShoppingCart, ReceiptText, Store, type LucideIcon } from "lucide-react";
+import { BarChart3, Boxes, ClipboardList, History, LayoutDashboard, Package, Settings, SlidersHorizontal, Tags, Truck, Users, ArrowDownToLine, ArrowUpFromLine, ShoppingCart, ReceiptText, Store, ClipboardCheck, type LucideIcon } from "lucide-react";
 import type { Role } from "@/modules/access/policy";
 export type NavItem = { label: string; href: string; icon: LucideIcon; minimum: Role; /** Show only to exactly this role (e.g. the USER shopping links). */ only?: Role; /** Hide from exactly this role (Staff/Admin-only wording such as Inventory). */ hideFor?: Role };
 export type NavSection = { title?: string; items: NavItem[] };
@@ -32,6 +32,7 @@ export const adminNav: NavSection[] = [
     { label: "Overview", href: "/admin", icon: LayoutDashboard, minimum: "ADMIN" },
     { label: "Team & access", href: "/admin/team", icon: Users, minimum: "ADMIN" },
     { label: "Preferences", href: "/admin/preferences", icon: SlidersHorizontal, minimum: "ADMIN" },
+    { label: "Customer orders", href: "/admin/orders", icon: ClipboardCheck, minimum: "ADMIN" },
     { label: "Audit history", href: "/admin/audit", icon: History, minimum: "ADMIN" },
   ] },
   ...appNav,

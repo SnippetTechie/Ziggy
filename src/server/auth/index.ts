@@ -6,6 +6,7 @@ import { db } from "../db";
 import { users, members, locations } from "../db/schema";
 import type { Access, Role } from "../../modules/access/policy";
 import { ensure } from "../errors";
+import { devLoginEnabled, devSessionKey, resolveDevMember } from "./dev-login";
 
 /**
  * Local-development "skip login" mode. Set ZIGGY_DEV_AUTH_ROLE=ADMIN|STAFF|USER in .env.local
@@ -24,6 +25,7 @@ const devMember = cache(async () => {
 
 export const getIdentity = cache(async () => {
   if (devAuthRole()) return (await devMember()).user;
+  if (devLoginEnabled()) { const key = await devSessionKey(); return key ? (await resolveDevMember(key)).user : null; }
   const session = await auth();
   if (!session.userId) return null;
   const [existing] = await db.select().from(users).where(eq(users.clerkUserId, session.userId)).limit(1);
@@ -39,6 +41,12 @@ export const getIdentity = cache(async () => {
 export const getAccess = cache(async (): Promise<Access | null> => {
   const dev = devAuthRole();
   if (dev) { const member = await devMember(); return { userId: member.user.id, workspaceId: member.workspaceId, locationId: member.locationId, role: dev }; }
+  if (devLoginEnabled()) {
+    const key = await devSessionKey();
+    if (!key) return null;
+    const member = await resolveDevMember(key);
+    return { userId: member.user.id, workspaceId: member.workspaceId, locationId: member.locationId, role: member.role };
+  }
   const identity = await getIdentity();
   if (!identity) return null;
   const [member] = await db.select({ workspaceId: members.workspaceId, role: members.role, locationId: locations.id }).from(members).innerJoin(locations, eq(locations.workspaceId, members.workspaceId)).where(and(eq(members.userId, identity.id), eq(members.status, "ACTIVE"))).orderBy(asc(locations.id)).limit(1);

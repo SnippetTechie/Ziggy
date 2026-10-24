@@ -1,25 +1,46 @@
 "use client";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { ArrowLeft, CheckCircle2, ReceiptText } from "lucide-react";
-import { buttonClass, secondaryClass } from "@/components/inventory/ui";
+import { ArrowLeft, CheckCircle2, ClipboardList, ReceiptText } from "lucide-react";
+import { buttonClass, secondaryClass, useRemote } from "@/components/inventory/ui";
+import type { OrderView } from "@/modules/orders/service";
 import { formatInr } from "@/modules/demo-store/money";
 import { paymentLabel, type DemoOrder } from "@/modules/demo-store/orders";
 import { useDemoOrders } from "./store";
 import { DemoBadge, ErrorPanel, ProductImage } from "./parts";
+import { OrderStatusBadge } from "./stock-request";
 
 export const itemCount = (order: DemoOrder) => { const n = order.items.reduce((sum, i) => sum + i.quantity, 0); return `${n} ${n === 1 ? "item" : "items"}`; };
 const persistenceNote = "Demo orders are saved only in this browser for your account. Clearing site data or using another device will not show them. They are not operational records and never change real stock.";
 
 export function OrdersScreen() {
   const { orders, ready, failed } = useDemoOrders();
+  const requests = useRemote<OrderView[]>("orders?scope=mine");
   return <>
     <h1 className="text-heading-xl text-ink">My Orders</h1>
-    <p className="mt-2 max-w-2xl text-body-sm text-mute"><DemoBadge /> {persistenceNote}</p>
-    {failed ? <ErrorPanel message="We could not confirm your account, so your orders cannot be shown. Refresh the page or sign in again." />
-      : !ready ? <p role="status" className="py-8 text-mute">Loading your orders…</p>
-      : !orders.length ? <div className="mt-6 rounded-md border border-dashed border-hairline bg-canvas px-6 py-14 text-center"><ReceiptText className="mx-auto size-10 text-mute" aria-hidden /><h2 className="mt-3 text-heading-md text-ink">No orders yet</h2><p className="mt-2 text-body-sm text-mute">Place an order from the shop and it will show up here.</p><Link href="/inventory" className={`${buttonClass} mt-5`}>Go to the shop</Link></div>
-      : <ul className="mt-6 space-y-3">{orders.map(order => <li key={order.ref}><Link href={`/my-orders/${order.ref}`} className="flex flex-wrap items-center justify-between gap-3 rounded-md bg-canvas p-4 hover:bg-secondary-bg"><span><span className="block text-body-md font-semibold text-ink">{order.ref}</span><span className="block text-caption text-mute">{new Date(order.createdAt).toLocaleString()} · {itemCount(order)} · {paymentLabel(order.method)}</span></span><span className="text-right"><span className="block text-body-md font-semibold text-ink">{formatInr(order.total)}</span><span className="block text-caption text-success-deep">Payment simulated</span></span></Link></li>)}</ul>}
+
+    <section aria-labelledby="stock-requests" className="mt-6">
+      <div className="flex flex-wrap items-center justify-between gap-3"><h2 id="stock-requests" className="text-heading-lg text-ink">Stock requests</h2><button type="button" className={secondaryClass} onClick={requests.refresh}>Refresh status</button></div>
+      <p className="mt-1 max-w-2xl text-body-sm text-mute">Real requests to the store, saved on the server. Quantities only: no prices and no payment. The store team confirms and fulfils them.</p>
+      {requests.loading ? <p role="status" className="py-6 text-mute">Loading your stock requests…</p>
+        : requests.error ? <ErrorPanel message={requests.error} onRetry={requests.refresh} />
+        : !requests.data?.length ? <div className="mt-4 rounded-md border border-dashed border-hairline bg-canvas px-6 py-10 text-center"><ClipboardList className="mx-auto size-8 text-mute" aria-hidden /><h3 className="mt-2 text-heading-md text-ink">No stock requests yet</h3><p className="mt-1 text-body-sm text-mute">Open <strong>In-store stock</strong> in the shop, add items and place a stock request.</p><Link href="/inventory" className={`${buttonClass} mt-4`}>Go to the shop</Link></div>
+        : <ul className="mt-4 space-y-3">{requests.data.map(order => <li key={order.id} className="rounded-md bg-canvas p-4">
+          <div className="flex flex-wrap items-center justify-between gap-2"><div><p className="text-body-md font-semibold text-ink">{order.ref}</p><p className="text-caption text-mute">{new Date(order.createdAt).toLocaleString()}{order.note ? ` · ${order.note}` : ""}</p></div><OrderStatusBadge status={order.status} /></div>
+          <ul className="mt-3 divide-y divide-hairline-soft text-body-sm">{order.items.map(item => <li key={item.productId} className="flex justify-between gap-3 py-1.5"><span>{item.productName} <span className="text-caption text-mute">{item.sku}</span></span><span className="font-semibold text-ink">{Number(item.quantity)} {item.unitLabel}</span></li>)}</ul>
+          {order.status === "FULFILLED" && <p className="mt-2 text-caption text-success-deep">Fulfilled: the stock has been handed out.</p>}
+          {order.status === "CANCELLED" && <p className="mt-2 text-caption text-error">Cancelled. No stock was handed out.</p>}
+        </li>)}</ul>}
+    </section>
+
+    <section aria-labelledby="demo-purchases" className="mt-10">
+      <h2 id="demo-purchases" className="text-heading-lg text-ink">Demo purchases</h2>
+      <p className="mt-1 max-w-2xl text-body-sm text-mute"><DemoBadge /> {persistenceNote} They are separate from stock requests and are never shown to the store team.</p>
+      {failed ? <ErrorPanel message="We could not confirm your account, so your demo purchases cannot be shown. Refresh the page or sign in again." />
+        : !ready ? <p role="status" className="py-6 text-mute">Loading your demo purchases…</p>
+        : !orders.length ? <div className="mt-4 rounded-md border border-dashed border-hairline bg-canvas px-6 py-10 text-center"><ReceiptText className="mx-auto size-8 text-mute" aria-hidden /><h3 className="mt-2 text-heading-md text-ink">No demo purchases yet</h3><p className="mt-1 text-body-sm text-mute">Buy something in the <strong>Demo shop</strong> to see it here.</p></div>
+        : <ul className="mt-4 space-y-3">{orders.map(order => <li key={order.ref}><Link href={`/my-orders/${order.ref}`} className="flex flex-wrap items-center justify-between gap-3 rounded-md bg-canvas p-4 hover:bg-secondary-bg"><span><span className="block text-body-md font-semibold text-ink">{order.ref}</span><span className="block text-caption text-mute">{new Date(order.createdAt).toLocaleString()} · {itemCount(order)} · {paymentLabel(order.method)}</span></span><span className="text-right"><span className="block text-body-md font-semibold text-ink">{formatInr(order.total)}</span><span className="block text-caption text-success-deep">Payment simulated</span></span></Link></li>)}</ul>}
+    </section>
   </>;
 }
 

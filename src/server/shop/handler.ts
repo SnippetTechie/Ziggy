@@ -3,19 +3,20 @@ import { ZodError } from "zod";
 import { requireRole } from "@/server/authorization";
 import { AppError, ensure } from "@/server/errors";
 import { CartChangedError } from "@/modules/demo-store/checkout";
-import type { Access } from "@/modules/access/policy";
+import type { Access, Role } from "@/modules/access/policy";
 
 const headers = { "Cache-Control": "private, no-store" };
 
 /**
- * Shared wrapper for the USER-level catalog/demo-checkout endpoints. Same envelope,
- * origin and size rules as the main /api/v1 handler, but a fixed USER minimum:
- * nothing here can mutate stock, so no higher role is ever needed.
+ * Shared wrapper for the catalog, demo-checkout and customer-order endpoints. Same envelope,
+ * origin and size rules as the main /api/v1 handler. `minimum` defaults to USER; the order
+ * fulfilment endpoints pass ADMIN. Demo checkout never touches stock; fulfilment does, via the
+ * existing inventory service.
  */
-export async function shopRoute(request: Request, run: (ctx: { access: Access; url: URL; body: () => Promise<unknown> }) => Promise<unknown>) {
+export async function shopRoute(request: Request, run: (ctx: { access: Access; url: URL; body: () => Promise<unknown> }) => Promise<unknown>, minimum: Role = "USER") {
   const requestId = crypto.randomUUID();
   try {
-    const access = await requireRole("USER");
+    const access = await requireRole(minimum);
     const url = new URL(request.url);
     const write = request.method !== "GET";
     if (write) {

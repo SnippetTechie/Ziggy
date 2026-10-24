@@ -9,6 +9,7 @@ import { itemCount } from "./orders";
 import { paymentLabel } from "@/modules/demo-store/orders";
 import { useCart, useDemoOrders } from "./store";
 import { Availability, CardSkeleton, DemoBanner, ErrorPanel, Price, ProductImage } from "./parts";
+import { RequestTray, requestable, type RequestLine } from "./stock-request";
 
 type CatalogData = { source: "demo" | "live"; items: CatalogItem[]; categories: CatalogCategory[]; total: number };
 const sorts = [["name", "Name (A–Z)"], ["price-asc", "Price: low to high"], ["price-desc", "Price: high to low"], ["availability", "Most available"]] as const;
@@ -22,6 +23,7 @@ export function UserCatalogue() {
   const catalog = useRemote<CatalogData>(`catalog?${query}`);
   const cart = useCart();
   const [announce, setAnnounce] = useState("");
+  const [request, setRequest] = useState<Record<string, RequestLine>>({}); // real-inventory stock request in progress
   const switchSource = (next: "demo" | "live") => { setSource(next); setCategoryId(""); setSearchInput(""); setSearch(""); setStock("all"); setSort("name"); };
   const items = catalog.data?.items ?? [];
   const filtered = !!search || !!categoryId || stock !== "all";
@@ -38,7 +40,7 @@ export function UserCatalogue() {
     </div>
     <div className="mt-4">{source === "demo"
       ? <DemoBanner>Sample shop. Products, prices and stock here are fictional demo data, separate from the store&rsquo;s real stock. Payment is simulated: no money is charged.</DemoBanner>
-      : <p className="rounded-md border border-hairline bg-canvas p-4 text-body-sm text-body">In-store stock shows what the store really has on its shelves. Prices are not recorded yet, so these items can&rsquo;t be added to the demo cart.</p>}</div>
+      : <p className="rounded-md border border-hairline bg-canvas p-4 text-body-sm text-body">In-store stock is what the store really has. Add items to a <strong>stock request</strong>; the store team confirms and fulfils it. Quantities only: no prices and no payment. Demo purchases never appear here.</p>}</div>
 
     <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
       <Field label="Search"><input className={inputClass} type="search" value={searchInput} placeholder="Name, SKU or keyword" onChange={event => setSearchInput(event.target.value)} /></Field>
@@ -58,19 +60,22 @@ export function UserCatalogue() {
           <div className="mt-3 flex flex-1 flex-col gap-2">
             <p className="text-caption text-mute">{item.category ?? "Uncategorized"}</p>
             <h2 className="text-body-md font-semibold text-ink"><Link href={`/inventory/${item.id}`} className="hover:underline">{item.name}</Link></h2>
-            <Price item={item} />
+            {item.source === "demo" && <Price item={item} />}
             <div><Availability status={item.stockStatus} quantity={item.quantity} unit={item.unit} /></div>
             <div className="mt-auto pt-2">
-              {item.source === "live" ? <Link href={`/inventory/${item.id}`} className={`${secondaryClass} w-full`}>View details</Link>
+              {item.source === "live" ? (requestable(item) <= 0 ? <button type="button" disabled className={`${secondaryClass} w-full`}>Out of stock</button> : <button type="button" disabled={(request[item.id]?.quantity ?? 0) >= requestable(item)} className={`${buttonClass} w-full`} onClick={() => { setRequest(r => ({ ...r, [item.id]: { item, quantity: Math.min((r[item.id]?.quantity ?? 0) + 1, requestable(item)) } })); setAnnounce(`Added ${item.name} to your stock request.`); }}>{(request[item.id]?.quantity ?? 0) >= requestable(item) ? "Max requested" : "Add to request"}</button>)
                 : !item.purchasable ? <button type="button" disabled className={`${secondaryClass} w-full`}>Out of stock</button>
                 : <button type="button" disabled={!canAdd} className={`${buttonClass} w-full`} onClick={() => { cart.add({ productId: item.id, quantity: 1, unitPrice: item.price!.amount }, item.maxQuantity); setAnnounce(`Added ${item.name} to your cart.`); }}>{!cart.ready ? "Loading…" : canAdd ? "Add to cart" : "Max in cart"}</button>}
               {inCart > 0 && <p className="mt-2 text-caption text-mute">{inCart} in your cart</p>}
+              {item.source === "live" && request[item.id] && <p className="mt-2 text-caption text-mute">{request[item.id].quantity} in your request</p>}
             </div>
           </div>
         </li>;
       })}</ul>}
 
-    <RecentOrders />
+    {source === "live" && <RequestTray lines={Object.values(request)} onQuantity={(id, quantity) => setRequest(r => r[id] ? { ...r, [id]: { ...r[id], quantity } } : r)} onRemove={id => setRequest(r => Object.fromEntries(Object.entries(r).filter(([key]) => key !== id)))} onPlaced={() => { setRequest({}); catalog.refresh(); }} />}
+
+    {source === "demo" && <RecentOrders />}
   </>;
 }
 
@@ -84,7 +89,7 @@ function EmptyCatalog({ source, filtered, total, onDemo, onClear }: { source: st
 function RecentOrders() {
   const { orders, ready } = useDemoOrders();
   if (!ready) return null;
-  return <section aria-labelledby="recent-orders" className="mt-10"><div className="flex items-center justify-between gap-3"><h2 id="recent-orders" className="flex items-center gap-2 text-heading-lg text-ink"><ReceiptText className="size-5" aria-hidden />Recent orders</h2>{orders.length > 0 && <Link href="/my-orders" className="text-body-sm font-semibold underline">View all</Link>}</div>
-    {!orders.length ? <p className="mt-3 rounded-md border border-dashed border-hairline bg-canvas p-5 text-body-sm text-mute">No orders yet. Add something from the shop to your cart and try the simulated checkout.</p>
+  return <section aria-labelledby="recent-orders" className="mt-10"><div className="flex items-center justify-between gap-3"><h2 id="recent-orders" className="flex items-center gap-2 text-heading-lg text-ink"><ReceiptText className="size-5" aria-hidden />Recent demo purchases</h2>{orders.length > 0 && <Link href="/my-orders" className="text-body-sm font-semibold underline">View all</Link>}</div>
+    {!orders.length ? <p className="mt-3 rounded-md border border-dashed border-hairline bg-canvas p-5 text-body-sm text-mute">No demo purchases yet. Add something from the demo shop to your cart and try the simulated checkout.</p>
       : <ul className="mt-3 grid gap-3 md:grid-cols-3">{orders.slice(0, 3).map(order => <li key={order.ref}><Link href={`/my-orders/${order.ref}`} className="block rounded-md bg-canvas p-4 hover:bg-secondary-bg"><span className="text-body-sm font-semibold text-ink">{order.ref}</span><span className="mt-1 block text-caption text-mute">{new Date(order.createdAt).toLocaleString()} · {itemCount(order)} · {paymentLabel(order.method)}</span><span className="mt-2 block text-body-md font-semibold text-ink">{formatInr(order.total)}</span></Link></li>)}</ul>}</section>;
 }
