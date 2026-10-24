@@ -14,6 +14,7 @@ import { devLoginEnabled, devSessionKey, resolveDevMember } from "./dev-login";
  * Ignored when NODE_ENV is production, so it cannot be switched on in a deployment.
  */
 export function devAuthRole(): Role | null {
+  if (process.env.ZIGGY_DEV_LOGIN === "1") return null; // never restore the legacy bypass if cookie login is misconfigured
   const role = process.env.ZIGGY_DEV_AUTH_ROLE;
   return process.env.NODE_ENV !== "production" && (role === "USER" || role === "STAFF" || role === "ADMIN") ? role : null;
 }

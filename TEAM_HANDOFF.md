@@ -261,3 +261,15 @@ Other assumptions: the `USER` role is our reading of "three dashboards" (confirm
 **Images**: 12 Wikimedia Commons photos in `public/images/demo/`, with source, author, licence and alt text in `public/images/demo/manifest.json`. Most are CC BY / CC BY-SA, so the attribution shown on each product page must be kept.
 
 **Verification status**: unit/route tests, lint, typecheck and production build pass. UI flows were exercised in a real browser against a mock-backed harness (no sign-in). The signed-in path (Clerk, real `/api/v1/me`, the live-inventory tab against Neon) still needs a manual check with a USER account.
+
+## 15. Presentation continuation (24 October 2026; explicit owner-authorized exception)
+
+The current presentation also supports **real quantity-only stock requests** from the In-store stock tab. This supersedes the read-only live-stock limitation in section 14 for this flow. It does not introduce selling prices, totals, payment or migrations. Simulated demo purchases remain browser-only and separate from operational requests.
+
+- Development sign-in has exactly two public demo accounts: `demo-user` / `ziggy-demo-user`, and `demo-admin` / `ziggy-demo-admin`. Requires `ZIGGY_DEV_LOGIN=1`, `ZIGGY_DEV_SESSION_SECRET` (16+ characters), and `NEXT_PUBLIC_ZIGGY_DEV_LOGIN=1` for the development logout UI. Preserve the ignored local environment files. Production continues to use Clerk.
+- The signed HttpOnly cookie is authoritative when demo login is configured. The old `ZIGGY_DEV_AUTH_ROLE` is suppressed even when the session secret is misconfigured. Sign out and sign in to switch roles; no environment change or restart.
+- Real requests use the existing `customer_orders` and `customer_order_items` tables, mirrored in `src/modules/orders/tables.ts`. They are deliberately outside the migration schema exports. **Do not run migrations against the shared database.**
+- `/api/v1/orders` places idempotent requests and lists the caller's own requests. Admins use `/admin/orders` and `/api/v1/orders?scope=all`. Action endpoints require Admin. Transitions are PLACED -> CONFIRMED -> FULFILLED, or cancellation before fulfilment.
+- Fulfilment locks the order, uses its recorded location, and posts through the existing stock service in the same transaction as status/audit updates. A retry cannot post another deduction; any item failure rolls the entire fulfilment back. Placement rechecks active membership inside its transaction.
+- `connection()` before the session clock is retained for Next Cache Components. Dedicated demo user insertion retains `clerkUserId: "demo-local-user"` for the live NOT NULL column. Existing identity collisions, suspended or promoted demo-user memberships fail closed.
+- Browser verification used development cookie login, not interactive production Clerk login. See `PRESENTATION_VERIFICATION.md` for evidence and limitations.

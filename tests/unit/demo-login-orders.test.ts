@@ -13,7 +13,7 @@ vi.mock("@/modules/orders/service", async importOriginal => ({ ...(await importO
 
 const env = { ...process.env };
 beforeEach(() => { Object.assign(process.env, { NODE_ENV: "development", ZIGGY_DEV_LOGIN: "1", ZIGGY_DEV_SESSION_SECRET: "unit-test-secret-0123456789" }); requireRole.mockReset(); });
-afterEach(() => { process.env = { ...env }; });
+afterEach(() => { vi.unstubAllEnvs(); process.env = { ...env }; });
 
 describe("demo sign-in", () => {
   it("accepts only the two demo accounts", async () => {
@@ -22,6 +22,7 @@ describe("demo sign-in", () => {
     expect(checkDemoLogin("demo-admin", "ziggy-demo-admin")).toBe("admin");
     expect(checkDemoLogin("demo-admin", "ziggy-demo-user")).toBeNull();
     expect(checkDemoLogin("admin", "")).toBeNull();
+    expect(checkDemoLogin("éemo-user", "ziggy-demo-user")).toBeNull();
   });
   it("signs tokens that expire and cannot be tampered with or upgraded", async () => {
     const { makeToken, readToken } = await import("../../src/server/auth/dev-login");
@@ -33,12 +34,15 @@ describe("demo sign-in", () => {
     expect(readToken(`admin.${expires}.${signature}`, now)).toBeNull(); // role swap
     expect(readToken(`user.${expires}.${signature.slice(1)}x`, now)).toBeNull();
     expect(readToken("garbage", now)).toBeNull();
+    expect(readToken(`${token}.extra`, now)).toBeNull();
+    expect(readToken(`user.${expires}.${"é".repeat(signature.length)}`, now)).toBeNull();
+    expect(readToken(makeToken("user", Number.NaN), now)).toBeNull();
   });
   it("is off in production, without the flag, or without a strong secret", async () => {
     const { devLoginEnabled } = await import("../../src/server/auth/dev-login");
     expect(devLoginEnabled()).toBe(true);
-    process.env.NODE_ENV = "production"; expect(devLoginEnabled()).toBe(false);
-    process.env.NODE_ENV = "development"; process.env.ZIGGY_DEV_LOGIN = "0"; expect(devLoginEnabled()).toBe(false);
+    vi.stubEnv("NODE_ENV", "production"); expect(devLoginEnabled()).toBe(false);
+    vi.stubEnv("NODE_ENV", "development"); process.env.ZIGGY_DEV_LOGIN = "0"; expect(devLoginEnabled()).toBe(false);
     process.env.ZIGGY_DEV_LOGIN = "1"; process.env.ZIGGY_DEV_SESSION_SECRET = "short"; expect(devLoginEnabled()).toBe(false);
   });
 });

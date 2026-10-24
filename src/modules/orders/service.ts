@@ -58,6 +58,7 @@ export async function placeOrder(access: Access, raw: z.input<typeof placeInput>
   const canonical = JSON.stringify({ u: access.userId, n: input.note, i: [...input.items].map(i => [i.productId, clean(i.quantity)]).sort() });
   const requestHash = createHash("sha256").update(canonical).digest("hex");
   const id = await db.transaction(async tx => {
+    await checkActor(tx, access, "USER");
     await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${"order:" + access.workspaceId + ":" + submitKey}, 0))`);
     const [prior] = await tx.select().from(orders).where(and(eq(orders.workspaceId, access.workspaceId), eq(orders.submitKey, submitKey)));
     if (prior) { // retry or double submit: return the original, never a second order
@@ -100,7 +101,7 @@ export async function transitionOrder(access: Access, orderId: string, action: O
       const items = (await tx.select().from(orderItems).where(and(eq(orderItems.workspaceId, access.workspaceId), eq(orderItems.orderId, order.id)))).sort((a, b) => a.productId.localeCompare(b.productId));
       for (const item of items) {
         try {
-          await postStockInTransaction(tx, access, { productId: item.productId, quantity: clean(item.quantity), reasonCode: "ISSUE", supplierId: null, unitCost: null, reference: refOf(order.id), note: `Customer stock request ${refOf(order.id)} (${order.requesterName})` }, "STOCK_OUT", `order-${order.id}-${item.productId}`);
+          await postStockInTransaction(tx, { ...access, locationId: order.locationId }, { productId: item.productId, quantity: clean(item.quantity), reasonCode: "ISSUE", supplierId: null, unitCost: null, reference: refOf(order.id), note: `Customer stock request ${refOf(order.id)} (${order.requesterName})` }, "STOCK_OUT", `order-${order.id}-${item.productId}`);
         } catch (error) {
           if (error instanceof AppError && error.code === "INSUFFICIENT_STOCK") throw new AppError("INSUFFICIENT_STOCK", `Not enough stock to fulfil ${item.productName}. The order stays ${order.status.toLowerCase()} and no stock was changed.`, 422);
           throw error;

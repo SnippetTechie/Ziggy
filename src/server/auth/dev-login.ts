@@ -28,15 +28,19 @@ export function devLoginEnabled() {
   return process.env.NODE_ENV !== "production" && process.env.ZIGGY_DEV_LOGIN === "1" && (process.env.ZIGGY_DEV_SESSION_SECRET?.length ?? 0) >= 16;
 }
 const sign = (value: string) => createHmac("sha256", process.env.ZIGGY_DEV_SESSION_SECRET!).update(value).digest("base64url");
-const same = (a: string, b: string) => a.length === b.length && timingSafeEqual(Buffer.from(a), Buffer.from(b));
+const same = (a: string, b: string) => {
+  const left = Buffer.from(a), right = Buffer.from(b);
+  return left.length === right.length && timingSafeEqual(left, right);
+};
 
 export function makeToken(key: DemoKey, now = Date.now()) {
   const payload = `${key}.${now + TTL_MS}`;
   return `${payload}.${sign(payload)}`;
 }
 export function readToken(raw: string, now = Date.now()): DemoKey | null {
-  const [key, expires, signature] = raw.split(".");
-  if ((key !== "user" && key !== "admin") || !expires || !signature || !same(signature, sign(`${key}.${expires}`)) || Number(expires) < now) return null;
+  const parts = raw.split(".");
+  const [key, expires, signature] = parts;
+  if (parts.length !== 3 || (key !== "user" && key !== "admin") || !expires || !signature || !Number.isFinite(Number(expires)) || Number(expires) <= now || !same(signature, sign(`${key}.${expires}`))) return null;
   return key;
 }
 export function checkDemoLogin(username: string, password: string): DemoKey | null {
@@ -63,8 +67,10 @@ export const resolveDevMember = cache(async (key: DemoKey) => {
   // The live users.clerk_user_id column is NOT NULL, so the demo user gets a clearly non-Clerk placeholder id.
   await db.insert(users).values({ clerkUserId: "demo-local-user", email: account.email, displayName: account.name }).onConflictDoNothing();
   const [user] = await db.select().from(users).where(eq(users.email, account.email));
+  ensure(user?.clerkUserId === "demo-local-user", "DEMO_USER_INVALID", "The dedicated demo identity is not available.", 403);
   await db.insert(members).values({ workspaceId: admin.workspaceId, userId: user.id, role: "USER", status: "ACTIVE" }).onConflictDoNothing();
   const [member] = await db.select().from(members).where(sql`${members.workspaceId} = ${admin.workspaceId} and ${members.userId} = ${user.id}`);
   ensure(member?.status === "ACTIVE", "DEMO_USER_SUSPENDED", "The demo user is not active.", 403);
+  ensure(member.role === "USER", "DEMO_USER_INVALID", "The demo account must have the User role.", 403);
   return { user, workspaceId: admin.workspaceId, locationId: admin.locationId, role: member.role };
 });

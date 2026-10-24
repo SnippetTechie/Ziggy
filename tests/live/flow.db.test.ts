@@ -89,11 +89,15 @@ describe.skipIf(!live)("shared inventory flow on the real tables (rolled back)",
   const ids = { category: "", supplier: "", product: "" };
 
   beforeAll(async () => {
+    // This suite exercises Clerk sessions, independent of local presentation flags.
+    vi.stubEnv("ZIGGY_DEV_LOGIN", "0");
+    vi.stubEnv("ZIGGY_DEV_AUTH_ROLE", "");
     ({ tx, fixture: f } = await shared.start());
     holder.ex = tx;
   });
   afterAll(async () => {
     await shared.finish();
+    vi.unstubAllEnvs();
   });
 
   it("unauthenticated, no-membership and suspended users get no business data", async () => {
