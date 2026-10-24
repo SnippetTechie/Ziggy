@@ -19,7 +19,7 @@ No super-admin platform and no supplier dashboard.
 
 **Start with [`TEAM_HANDOFF.md`](TEAM_HANDOFF.md)** — corrected MVP, the one permissions matrix, route/API contracts, ownership, and checklist.
 
-**Current state (honest status):** Phase 1 in progress. Installed and working: Next.js 16 scaffold, Tailwind 4, ESLint, Drizzle + Neon client, app shell, and clickable wireframes with placeholder data. **Not built:** authentication (Clerk not installed), roles/access control, database tables and migrations, API routes, stock logic, alerts, reports. Planned but **not installed:** Clerk, Zod, shadcn/ui, a decimal library, Vitest, Playwright. Never describe a planned item as working.
+**Current state (honest status):** Phase 1 in progress. Installed and working: Next.js 16 scaffold, Tailwind 4, ESLint, Drizzle + Neon client, app shell, and clickable wireframes with placeholder data. Clerk sign-in (Google) with a signed-in check on app pages. **Not built:** roles/access control, database tables and migrations, API routes, stock logic, alerts, reports. Planned but **not installed:** Zod, shadcn/ui, a decimal library, Vitest, Playwright. Never describe a planned item as working.
 
 **Next.js 16:** this project uses Next.js 16 with `cacheComponents` and `partialPrefetching` on. APIs differ from older versions — read the relevant guide in `node_modules/next/dist/docs/` before writing Next.js code (see `AGENTS.md`).
 
@@ -43,7 +43,7 @@ Note: docs 02, 03, 04, 06 and 07 are truncated at their tail (source pastes were
 
 Installed: Next.js (App Router) + React + TypeScript, Tailwind CSS, Neon PostgreSQL client (`@neondatabase/serverless`), Drizzle ORM + drizzle-kit (migrations in `drizzle/migrations/`), Lucide icons, ESLint.
 
-Planned (not installed — ask the `package.json` owner before adding): Clerk (Google OAuth), Zod (API-boundary validation), shadcn/ui, a decimal library for quantity math, Vitest, Playwright (optional).
+Installed: Clerk (`@clerk/nextjs`, Google OAuth). Planned (not installed — ask the `package.json` owner before adding): Zod (API-boundary validation), shadcn/ui, a decimal library for quantity math, Vitest, Playwright (optional).
 
 Deferred: S3-compatible object storage for product images, a separate Python AI service.
 
@@ -90,7 +90,8 @@ One Next.js app, one deployment, one database. Shared `AppShell`; nav filtered b
 
 - Hidden/deferred routes (files exist, remove from nav): `/transfers`, `/intelligence`, `/admin/locations`, `/admin/units`, `/admin/data`, `/admin/workspace`, `/select-workspace`.
 - **Obsolete (do not extend):** `src/app/shop/**`, `src/app/(app)/orders/**`, `src/components/shop/**`, shop/order values in `src/lib/demo.ts`, the "Customer orders" nav item.
-- **Clerk is not connected.** `/sign-in` and `/sign-up` are placeholders; Clerk code is added by the auth owner (Shoaeb) per `TEAM_HANDOFF.md`. Don't add Clerk code unless asked.
+- **Auth (Clerk Core 3, `@clerk/nextjs` v7) is connected** — Google sign-in at `/sign-in` and `/sign-up` (catch-all routes). Owner: Shoaeb. `src/proxy.ts` runs `clerkMiddleware()` but protects nothing by itself. Protected layouts wrap content in `<Suspense><RequireSignIn>…</RequireSignIn></Suspense>` (`src/components/auth/require-sign-in.tsx`), which only checks *signed in*; role checks come with `requireRole()` (`TEAM_HANDOFF.md` §8). Every API route must check auth itself.
+- Clerk Core 3 rules: `createRouteMatcher` is deprecated — don't use it. `<SignedIn>`/`<SignedOut>` were removed; use `<Show when="signed-in">`. Under `cacheComponents`, anything calling `auth()`/`currentUser()` or rendering `<Show>` in a Server Component must be inside `<Suspense>`, and so must `<SignIn />`/`<SignUp />`. Clerk keys live in `.env.local` only.
 - `/admin/*` and every role-gated page/API must be protected by a **server-side** role check. Hiding the link is not access control.
 - With `cacheComponents`, client hooks that read the URL (`usePathname`, `useParams`) must sit inside `<Suspense>` on any route below a dynamic segment, or the build fails. See `app-shell.tsx`.
 - `src/lib/demo.ts` holds wireframe placeholder values. Never use it in server logic.

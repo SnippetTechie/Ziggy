@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { UserButton } from "@clerk/nextjs";
 import { usePathname } from "next/navigation";
 import { Suspense, useState } from "react";
 import { ChevronDown, Menu, Search, Shield, X, ArrowLeft, MapPin } from "lucide-react";
@@ -208,12 +209,9 @@ function TopBar({ variant, onOpenMenu }: { variant: Variant; onOpenMenu: () => v
             className="h-11 w-full rounded-full bg-surface-card pl-10 pr-4 text-body-sm text-ink placeholder:text-ash focus:bg-canvas"
           />
         </label>
-        <span
-          aria-label="Account"
-          className="grid size-10 shrink-0 place-items-center rounded-full bg-secondary-bg text-body-sm font-bold text-ink"
-        >
-          AS
-        </span>
+        <div className="grid size-10 shrink-0 place-items-center">
+          <UserButton />
+        </div>
       </div>
     </header>
   );

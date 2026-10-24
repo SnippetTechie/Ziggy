@@ -2,7 +2,7 @@
 
 **Online Inventory and Stock Management System** for small businesses, college laboratories, and campus stores.
 
-> **Status:** Phase 1 — clickable wireframes with placeholder data only. **Not built yet:** authentication (Clerk), roles/access control, database tables, API routes, stock logic.
+> **Status:** Phase 1 — clickable wireframes with placeholder data only. **Working:** Clerk sign-in (Google), signed-in check on app pages. **Not built yet:** roles/access control, database tables, API routes, stock logic.
 >
 > **Scope correction:** an earlier version added a consumer storefront (shop, cart, checkout, delivery). That was a misreading of the problem statement and is **superseded**; the shop and customer-order wireframes still in the repo are obsolete and will be removed in a focused cleanup.
 >
@@ -27,7 +27,7 @@ Deferred: purchase-order workflows, multiple warehouses and transfers, unit conv
 | `STAFF` | Operations | `/dashboard` | Record stock in/out, review movements and low stock |
 | `ADMIN` | Administration | `/admin` | Manage products, categories, suppliers, members; alerts and reports |
 
-Planned entry: `/` is the inventory entry page (no private data when signed out); `/sign-in` offers **Login as: User | Staff | Admin** above Google sign-in. The selector only requests a destination — the server checks the real role. Clerk is not connected yet.
+Planned entry: `/` is the inventory entry page (no private data when signed out); `/sign-in` offers **Login as: User | Staff | Admin** above Google sign-in. The selector only requests a destination — the server checks the real role. Clerk sign-in is connected; the "Login as" selector and role routing are not built yet.
 
 ## Getting started
 
@@ -60,4 +60,4 @@ If the database host fails to resolve (`REFUSED` / `ENOTFOUND`), your network's 
 
 `npm run dev` · `build` · `lint` · `typecheck` · `db:generate` · `db:migrate` · `db:studio`
 
-Installed: Next.js 16, React 19, Tailwind 4, Drizzle, Neon client. Planned (not installed): Clerk, Zod, shadcn/ui, a decimal library, Vitest, Playwright.
+Installed: Next.js 16, React 19, Tailwind 4, Drizzle, Neon client, Clerk (`@clerk/nextjs`). Planned (not installed): Zod, shadcn/ui, a decimal library, Vitest, Playwright.

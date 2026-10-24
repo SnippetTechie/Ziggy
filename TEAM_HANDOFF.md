@@ -72,7 +72,7 @@ Existing wireframe routes are reused where practical. **New** = does not exist y
 | Route | Min role | Status / note |
 |---|---|---|
 | `/` | public | Exists as a three-door wireframe; to be replaced by the entry in §3 |
-| `/sign-in`, `/sign-up` | public | Placeholders (no Clerk). Both Google-only; add the "Login as" selector to sign-in |
+| `/sign-in`, `/sign-up` | public | Clerk `<SignIn />` / `<SignUp />` connected (catch-all routes). Still to add: the "Login as" selector |
 | `/auth/continue` | signed-in | **New** — server redirect resolver (§3) |
 | `/access-required` | signed-in | **New** — no / suspended membership |
 | `/inventory` | USER | Exists (wireframe) — product list with search, category and stock-status filters |
@@ -188,8 +188,9 @@ Reusable (keep): logo, `DESIGN.md` tokens, `app-shell.tsx`, `wireframe/` primiti
 |---|---|
 | Next.js 16 app, Tailwind 4, ESLint, Drizzle + Neon client, Lucide icons | Installed and configured |
 | Navigable wireframes for ops, admin, auth, and (obsolete) shop | Exist, placeholder data only |
-| Clerk, Zod, shadcn/ui, a decimal library (e.g. `decimal.js`), Vitest, Playwright | **Planned — not installed** |
-| Authentication, authorization, workspace/membership | **Not built** |
+| Clerk (`@clerk/nextjs`, Core 3) — sign-in/up pages, `src/proxy.ts`, signed-in check on `(app)` and `admin` layouts | **Installed and working** (no roles yet) |
+| Zod, shadcn/ui, a decimal library (e.g. `decimal.js`), Vitest, Playwright | **Planned — not installed** |
+| Authorization (roles), workspace/membership, `/auth/continue`, `/access-required` | **Not built** |
 | Database tables / migrations (`schema.ts` is empty, `drizzle/migrations` has only a journal) | **Not built** |
 | API routes (`src/app/api` does not exist) | **Not built** |
 | Stock movement logic, alerts, reports | **Not built** |

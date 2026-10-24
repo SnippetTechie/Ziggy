@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ChevronRight, Plus } from "lucide-react";
+import { Suspense } from "react";
+import { RequireSignIn } from "@/components/auth/require-sign-in";
 
 export const metadata: Metadata = { title: "Choose a workspace" };
 
@@ -10,7 +12,17 @@ export const metadata: Metadata = { title: "Choose a workspace" };
  */
 export default function SelectWorkspacePage() {
   return (
-    <>
+    <Suspense>
+      <RequireSignIn>
+        <WorkspaceList />
+      </RequireSignIn>
+    </Suspense>
+  );
+}
+
+function WorkspaceList() {
+  return (
+    <div className="w-full max-w-md rounded-lg bg-canvas p-8">
       <h1 className="text-heading-lg text-ink">Choose a workspace</h1>
       <p className="mt-1 text-body-md text-mute">You belong to these businesses.</p>
       <ul className="mt-6 space-y-2">
@@ -33,6 +45,6 @@ export default function SelectWorkspacePage() {
       <button className="mt-4 flex w-full items-center justify-center gap-2 rounded-md bg-secondary-bg py-2.5 text-body-sm font-bold text-ink">
         <Plus className="size-4" /> Create a new workspace
       </button>
-    </>
+    </div>
   );
 }
