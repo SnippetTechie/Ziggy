@@ -9,8 +9,9 @@ export function minimumRole(method: string, path: string[]): Role {
 }
 export function csv(headers: string[], rows: unknown[][]) {
   const escape = (value: unknown) => {
-    let text = String(value ?? "");
-    if (/^[=+\-@\t\r\n]/.test(text)) text = "'" + text;
+    let text = value instanceof Date ? value.toISOString() : String(value ?? "");
+    // Spreadsheets read a cell as a formula if it starts with = + - @ (even after spaces) or a tab/CR/LF.
+    if (/^[\t\r\n ]*[=+\-@]|^[\t\r\n]/.test(text)) text = "'" + text;
     return '"' + text.replaceAll('"', '""') + '"';
   };
   return [headers, ...rows].map(row => row.map(escape).join(",")).join("\r\n");

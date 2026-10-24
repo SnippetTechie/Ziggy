@@ -33,7 +33,7 @@ One Next.js app, one database, one set of inventory services, one design system.
 | `STAFF` | Operations | `/dashboard` | Record stock in/out, review movements and low-stock items. |
 | `ADMIN` | Administration | `/admin` | Manage products, categories, suppliers, members; stock operations; alerts, summaries, reports. |
 
-## 3. Entry and authentication (planned — nothing below exists yet)
+## 3. Entry and authentication (built by the auth/schema owner; Google login itself not browser-verified — see §13)
 
 - `/` is the User-facing inventory entry: shared shell, short explanation, **Sign in** button. Signed-out visitors get **no** inventory or supplier data. There is no three-door picker. A signed-in member is redirected to their landing route.
 - `/sign-in` shows **Login as: User | Staff | Admin** (User preselected) above Clerk's Google sign-in. The choice is only a *requested destination* (`?as=user|staff|admin`). It never creates or changes a role.
@@ -95,7 +95,9 @@ Existing wireframe routes are reused where practical. **New** = does not exist y
 
 Hidden/deferred routes (leave files in place, remove from nav in cleanup): `/transfers`, `/intelligence`, `/admin/locations`, `/admin/units`, `/admin/data`, `/admin/workspace`, `/select-workspace` (single seeded workspace).
 
-## 6. API contract (`/api/v1`, all planned)
+## 6. API contract (`/api/v1`)
+
+> Implemented as one catch-all handler, `src/app/api/v1/[...path]/route.ts`. Success is `{ data }`, failure is `{ error: { code, message, requestId } }`. `GET /alerts/low-stock` returns `{ items, nextCursor: null, total }` (most urgent first). Differences from the table below (e.g. `GET /members/pending`) are called out in §12.
 
 The workspace is resolved on the server from the caller's membership. Errors use the standard envelope in doc 05 §8. Every request is Zod-validated.
 
@@ -125,7 +127,7 @@ The workspace is resolved on the server from the caller's membership. Errors use
 | GET / PATCH | `/settings` | ADMIN | Default low-stock threshold |
 | GET | `/audit-logs` | ADMIN | |
 
-## 7. Core database entities (MVP) — all planned, none created yet
+## 7. Core database entities (MVP) — exist in the dev database (see §12 for the migration-baseline caveat)
 
 Details in doc 03, "MVP data model". Money/quantities are `numeric`. Tables carry `workspace_id`.
 
@@ -138,24 +140,26 @@ Details in doc 03, "MVP data model". Money/quantities are `numeric`. Tables carr
 
 Low-stock rule (everywhere): `quantity_on_hand <= effective_threshold`, where `effective_threshold = product.low_stock_threshold ?? workspace default`. Only active products. Label `Out of stock` when quantity is 0, `Low stock` when above 0 but at/below threshold, `In stock` otherwise. One helper (`stockStatus`) in `src/modules/inventory/stock-status.ts` (Teammate 2) is the only place this is computed.
 
-## 8. Ownership and coordination
+## 8. Ownership and coordination (final, after the 2026-10-24 reconciliation)
 
 | Area | Owner |
 |---|---|
-| **Teammate 1** — Admin/product/category/supplier UI and APIs: `/products`, `/categories`, `/suppliers`, `src/modules/products`, `categories`, `suppliers`, `catalogue.ts` | Teammate 1 |
-| **Teammate 2** — User/Staff inventory views and stock services: `/inventory`, `/issues`, `/purchasing`, `/movements`, `src/modules/inventory`, `inventory.ts`, stock-in/out/movement APIs, concurrency + idempotency tests | Teammate 2 |
-| **Shoaeb** — Clerk auth, access-control helpers (`src/server/auth`, `src/server/authorization`), entry/login flow (`/`, `(auth)/*`, `/auth/continue`, `/access-required`), `/dashboard` + `/admin` summaries, alerts, reports, `/admin/team`, seed script, `identity.ts` | Shoaeb |
-| Shared single-owner files | `package.json` + `package-lock.json` (Shoaeb — ask before adding a dependency), `.env.example`, `src/server/db/index.ts`, `drizzle.config.ts`, `src/components/layout/app-shell.tsx` and `nav-config.ts` (Shoaeb; send nav changes as a PR comment/request), `DESIGN.md` (Shoaeb), this file and `CLAUDE.md` (Shoaeb, via PR) |
+| **Auth, access control and identity** — Clerk setup, `/sign-in` "Login as", `/sign-up`, `/auth/continue`, `/access-required`; `src/server/auth`, `src/server/authorization`, `src/modules/access`; memberships and the `/members`, `/settings`, `/audit-logs` endpoints; `/admin/team`, `/admin/preferences`; first-Admin bootstrap; identity schema (`src/server/db/schema/identity.ts`) and **all migrations** (`drizzle/`, `scripts/migrate.ts`) | **Auth/schema owner** (the teammate who pushed `feat/inventory-mvp`) |
+| **Catalogue and stock** — products, categories, suppliers, stock in/out, inventory and movement screens (`src/modules/products`, `src/modules/inventory`, `src/server/services`, `src/server/validation.ts`, `src/components/inventory/{products,catalogue,stock}.tsx`) | Teammates, as built in `feat/inventory-mvp` |
+| **Dashboard, alerts, reports** — `src/components/inventory/overview.tsx` (Staff dashboard and Admin overview), `src/components/inventory/reports.tsx`, `lowStockAlerts()` and the movement date-range/cursor fixes in `src/server/services/queries.ts`, report/CSV formatting (`src/modules/reports/*`, `csv()` in `src/modules/access/api-policy.ts`), `scripts/use-public-dns.cjs`, `tests/live/*`, `tests/unit/{reports,navigation,api-matrix}.test.ts` | **Shoaeb** |
+| Shared single-owner files | `package.json` + lockfile, `.env.example`, `drizzle.config.ts`, `src/server/db/index.ts`, `nav-config.ts`, `app-shell.tsx`: auth/schema owner (Shoaeb sends requests). `DESIGN.md`, this file, `CLAUDE.md`: Shoaeb via PR |
 
-**Access-control contract** (Shoaeb ships a dev stub first so others can code against it immediately):
+**Member management belongs to the auth/schema owner.** An earlier duplicate implementation (role helpers, `/auth/continue`, `/access-required`, "Login as", `/admin/team`, members and access-request APIs, an identity schema mirror) was written on `feat/shoaeb-dashboard-reports` before the teammate's work was pushed. It was **not** carried into the integration branch; it remains in git history (`53e52dd`, PR #1, superseded) for reference only.
+
+**Access-control contract** (implemented — use it, do not re-implement it):
 
 ```ts
-type Role = "USER" | "STAFF" | "ADMIN";
-getAccess(): Promise<{ userId: string; workspaceId: string; locationId: string; role: Role } | null>;
-requireRole(min: Role): Promise<Access>; // throws UnauthenticatedError (401) / ForbiddenError (403)
+getAccess(): Promise<{ userId, workspaceId, locationId, role } | null>; // ACTIVE membership only
+requireRole(min): Promise<Access>;      // API: throws AppError 401 / 403
+requirePageRole(min): Promise<Access>;  // pages: redirects to /sign-in, /access-required, or the role's own landing
 ```
 
-Teammates call `requireRole()` at the top of every route handler and server page and take `workspaceId`/`locationId` from its result — never from the request.
+Call `requireRole()` at the top of every API handler and `requirePageRole()` (via `<ProtectedPage minimum="…">`) on every page; take `workspaceId`/`locationId` from the result, never from the request.
 
 **Schema / migration rules**
 1. Edit only your own schema file. Cross-file foreign keys reference the other file's table by import.
@@ -184,31 +188,50 @@ Components: `src/components/shop/*` (`shop-shell`, `product-card`, `order-summar
 Other: `src/lib/demo.ts` (`DEMO_STORE`, `DEMO_ORDER_ID`, `ORDER_STATUSES`; keep or replace `DEMO_PRODUCT_ID` with inventory demo data), the "Customer orders" item and "Buy & sell" group in `nav-config.ts`, the Shop door on `src/app/page.tsx`, shopper wording in `(auth)/sign-up/page.tsx` and the shopper note in `(auth)/sign-in/page.tsx`.
 Reusable (keep): logo, `DESIGN.md` tokens, `app-shell.tsx`, `wireframe/` primitives (replace as real screens land), Drizzle/Neon setup.
 
-## 11. Current implementation status
+## 11. Current implementation status (integration branch)
 
 | Item | Status |
 |---|---|
-| Next.js 16 app, Tailwind 4, ESLint, Drizzle + Neon client, Lucide icons | Installed and configured |
-| Navigable wireframes for ops, admin, auth, and (obsolete) shop | Exist, placeholder data only |
-| Clerk (`@clerk/nextjs`, Core 3) — sign-in/up pages, `src/proxy.ts`, signed-in check on `(app)` and `admin` layouts | **Installed and working** (no roles yet) |
-| Zod, shadcn/ui, a decimal library (e.g. `decimal.js`), Vitest, Playwright | **Planned — not installed** |
-| Authorization (roles), workspace/membership, `/auth/continue`, `/access-required` | **Not built** |
-| Database tables / migrations (`schema.ts` is empty, `drizzle/migrations` has only a journal) | **Not built** |
-| API routes (`src/app/api` does not exist) | **Not built** |
-| Stock movement logic, alerts, reports | **Not built** |
+| Clerk (Core 3) sign-in/up with Google, "Login as" selector, `/auth/continue` role-based landing, `/access-required` | Built (auth/schema owner). Selector only requests a destination; server decides from the ACTIVE membership |
+| Server-side roles (`USER` < `STAFF` < `ADMIN`) on every page and API route | Built; verified by an offline matrix over 31 endpoints and by the live rolled-back flow |
+| Database: identity + catalogue + inventory tables, one workspace, an ACTIVE Admin, real inventory loaded by the team | Exists in the dev database (created outside this checkout) |
+| Products, categories, suppliers, stock in/out with locking, idempotency, immutable history | Built (teammates); verified by the live flow test |
+| Staff dashboard, Admin overview, low-stock alerts, movement history, reports, CSV, team access, preferences | Built; this branch adds quick links, ordered alerts, workspace-timezone date ranges, filterable reports, safer CSV, and the cursor fix below |
+| Obsolete ecommerce/deferred routes | Not linked; `/orders` and `/shop/**` return 404 |
+| Tests | `npm test` (unit, offline), `npm run test:live` (real tables, rolled back), `npm run test:db` (teammate's disposable-schema runner, not run here) |
+| Interactive Google sign-in and signed-in pages in a browser | **Unverified** — steps in §13 |
 
-## 12. Unresolved assumptions
+## 12. Unresolved items and findings
 
-1. **USER role** is our interpretation of "three dashboards". Confirm with the supervisor.
-2. First Admin comes from a seed script; later users get roles via an Admin granting access (no email invitations in the prototype).
-3. Single workspace + single location for the demo; multi-location is a future extension.
-4. One product per stock-in/out submission; multi-line documents are a future enhancement.
-5. "Saving" a stock movement posts it immediately; there are no draft documents in the MVP. (If drafts are ever added, they must not change stock.)
-6. Stock-out reasons and stock-in reasons use a fixed list (doc 03, `stock_movements` reason codes); confirm labels with the supervisor.
-7. Docs 02, 03, 04, 06, 07 were truncated in their source. The MVP tables (`inventory_balances`, `stock_movements`, `idempotency_keys`) and sections are written fresh in this change and are proposals until the team agrees.
-8. Product images, unit conversions, valuation and the Python AI service are deferred; Clerk redirect mechanics (`/auth/continue`) must be confirmed against current Clerk docs at implementation time.
+For the **auth/schema owner** (not changed here, because it is their area or needs a schema decision):
 
-## 13. USER demo shopping extension (explicit exception to the inventory-only scope)
+1. **`GET /members/pending` is not workspace-scoped.** It lists every user who has no membership anywhere, and `POST /members` / `PATCH /members/{id}` can add any known user id to the caller's workspace. With one workspace this is tolerable; with more it exposes other tenants' sign-ups. Recommended: an `access_requests` table (user, workspace, created_at) written by `/access-required`, and grants restricted to pending requests for the caller's workspace.
+2. **Migration baseline.** The live database was created outside this checkout and its migration history differs from `drizzle/migrations`; `db:migrate` correctly refuses it. The repo's Drizzle models also omit columns the live tables have (for example `workspaces.timezone`), and a fresh database built from the repo would lack them. Reports therefore read `settings.timezone` and fall back to `Asia/Kolkata`; a real `timezone` column would be cleaner.
+3. **First-Admin bootstrap is not in the repository.** `SEED_ADMIN_EMAIL` appears in `.env.example` but nothing reads it. The existing Admin was created out of band. I verified only that exactly one ACTIVE Admin exists and that the sole code path that writes `workspace_members` is the ADMIN-only `setMember` service (no auto-promotion). A documented, explicit bootstrap for fresh databases is still needed.
+4. **Unverified email** makes `getIdentity()` throw `EMAIL_REQUIRED`, which surfaces as an error page from `/auth/continue` rather than a friendly message.
+5. **Suspended and never-approved users see the same `/access-required` page**, with no way to request access.
+6. `npm run test:db` creates and drops a scratch schema in the shared database. It was not run during this integration.
+
+Fixed on this branch (found by the live tests): **movement pagination silently skipped rows** — the cursor round-tripped `created_at` through a JavaScript `Date` (millisecond precision) while Postgres stores microseconds, so on the real history the screen and the movements CSV returned 860 of 891 rows. The cursor now compares against the anchor row inside Postgres.
+
+Other assumptions: the `USER` role is our reading of "three dashboards" (confirm with the supervisor); one workspace and one location; one product per stock movement; saving a movement posts it immediately; product images, unit conversions, valuation and AI are deferred.
+
+## 13. Integration record and manual test steps
+
+**Branch:** `integration/dashboard-reports` (based on the teammate's `main` / `feat/inventory-mvp`, commit `42186d4`).
+
+**Retained from the teammate unchanged:** Clerk setup, `getIdentity`/`getAccess`/`requireRole`/`requirePageRole`, role policy and `destination()`, identity/catalogue/inventory schema and migrations, the catch-all API, stock/catalogue/member services, all screens not listed below, their tests.
+
+**Changed or added by Shoaeb (dashboards, alerts, reports):** see the ownership table in §8. Specifically: `lowStockAlerts()` (active products only, `quantity <= threshold` with workspace default, products with no balance row count as zero, Out of stock first then lowest quantity, full `total`); movement date filters use `occurred_at` and whole days in the workspace timezone; movements CSV has local and UTC time columns; CSV guards formulas after leading spaces and writes dates as ISO; Reports screen with search/status/type/date filters whose export carries the same filters and always contains every matching record (up to 10,000, otherwise a clear error); dashboard and Admin overview quick links, separate Low/Out counts and an "n of total" alerts note; cursor pagination fix; `scripts/use-public-dns.cjs` (opt-in dev/test fallback for networks whose DNS refuses `*.neon.tech`: `NODE_OPTIONS="--require ./scripts/use-public-dns.cjs" npm run dev`).
+
+**Manual test steps (Google sign-in is unverified):**
+1. `npm ci`, create `.env.local` from `.env.example`, `npm run dev`, open http://localhost:3000. Signed out you see only the intro page.
+2. Sign in with the configured Admin's Google account. Choose **Admin** → `/admin`; choose **Staff** → `/dashboard`; choose **User** → `/inventory`. The choice never changes the role.
+3. As Admin: add a category and a product with opening stock; on **Stock out** issue part of it, then more than the remainder (rejected); double-click submit (one movement). Check the dashboard counts, **Needs attention**, **Movement history**, then **Reports**: filter by dates and export both CSVs and open them in a spreadsheet.
+4. Sign in with a second Google account that has no role: you reach `/access-required` and no data. In `/admin/team` grant it **USER**, then try `/dashboard`, `/reports`, `/admin` as that user: each redirects to `/inventory`.
+5. Suspend a member in `/admin/team`: they lose access immediately. Try to demote or suspend the only active Admin: it is refused.
+
+## 14. USER demo shopping extension (explicit exception to the inventory-only scope)
 
 > Added on request as a **demo-only** extension. It does not reinstate the superseded storefront: no real payments, no fulfilment, no shopper accounts, and **no effect on real inventory**. The obsolete `src/app/shop/**`, `(app)/orders/**` and `src/components/shop/**` stay untouched and are still scheduled for cleanup (§10).
 

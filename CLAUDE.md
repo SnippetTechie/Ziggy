@@ -19,7 +19,7 @@ No super-admin platform and no supplier dashboard.
 
 **Start with [`TEAM_HANDOFF.md`](TEAM_HANDOFF.md)** — corrected MVP, the one permissions matrix, route/API contracts, ownership, and checklist.
 
-**Current state (honest status):** Phase 1 in progress. Installed and working: Next.js 16 scaffold, Tailwind 4, ESLint, Drizzle + Neon client, app shell, and clickable wireframes with placeholder data. Clerk sign-in (Google) with a signed-in check on app pages. **Not built:** roles/access control, database tables and migrations, API routes, stock logic, alerts, reports. Planned but **not installed:** Zod, shadcn/ui, a decimal library, Vitest, Playwright. Never describe a planned item as working.
+**Current state (honest status):** the inventory flow is built end to end — Clerk sign-in, server-side USER/STAFF/ADMIN roles from `workspace_members`, product/category/supplier management, stock in/out (locked, idempotent, immutable history), dashboards, low-stock alerts, movement history, reports with CSV, team access. The dev database already holds the tables and real data. **Unverified:** interactive Google sign-in and the signed-in screens in a browser. **Known gaps** (owners and detail in `TEAM_HANDOFF.md` §12): member requests are not workspace-scoped, the repo migrations do not match the live database baseline, and first-Admin bootstrap is not in the repo. Not installed: shadcn/ui, Playwright. Never describe a planned item as working.
 
 **Next.js 16:** this project uses Next.js 16 with `cacheComponents` and `partialPrefetching` on. APIs differ from older versions — read the relevant guide in `node_modules/next/dist/docs/` before writing Next.js code (see `AGENTS.md`).
 
@@ -43,7 +43,7 @@ Note: docs 02, 03, 04, 06 and 07 are truncated at their tail (source pastes were
 
 Installed: Next.js (App Router) + React + TypeScript, Tailwind CSS, Neon PostgreSQL client (`@neondatabase/serverless`), Drizzle ORM + drizzle-kit (migrations in `drizzle/migrations/`), Lucide icons, ESLint.
 
-Installed: Clerk (`@clerk/nextjs`, Google OAuth). Planned (not installed — ask the `package.json` owner before adding): Zod (API-boundary validation), shadcn/ui, a decimal library for quantity math, Vitest, Playwright (optional).
+Installed: Clerk (`@clerk/nextjs`, Google OAuth), Zod (API-boundary validation), `decimal.js` (quantity math), Vitest. Planned (not installed — ask the `package.json` owner before adding): shadcn/ui, Playwright (optional).
 
 Deferred: S3-compatible object storage for product images, a separate Python AI service.
 
@@ -83,14 +83,14 @@ One Next.js app, one deployment, one database. Shared `AppShell`; nav filtered b
 
 | Area | Routes (min role) | Layout |
 |---|---|---|
-| Entry / auth | `/` (public inventory entry), `/sign-in`, `/sign-up`, `/auth/continue` *(planned)*, `/access-required` *(planned)* | `src/app/page.tsx`, `src/app/(auth)/layout.tsx` |
-| USER | `/inventory`, `/inventory/[productId]` *(planned)* (USER) | `src/app/(app)/layout.tsx` |
-| STAFF | `/dashboard`, `/purchasing` (stock in), `/issues` *(planned, stock out)*, `/movements` *(planned)*, `/suppliers` view (STAFF) | `src/app/(app)/layout.tsx` |
-| ADMIN | `/admin`, `/admin/team`, `/admin/preferences`, `/admin/audit`, `/products`, `/categories` *(planned)*, `/reports`, `/suppliers` manage (ADMIN) | `src/app/admin/layout.tsx`, `(app)` |
+| Entry / auth | `/` (public inventory entry), `/sign-in`, `/sign-up`, `/auth/continue`, `/access-required` | `src/app/page.tsx`, `src/app/(auth)/layout.tsx` |
+| USER | `/inventory`, `/inventory/[productId]` (USER) | `src/app/(app)/layout.tsx` |
+| STAFF | `/dashboard`, `/purchasing` (stock in), `/issues` (stock out), `/movements`, `/suppliers` view (STAFF) | `src/app/(app)/layout.tsx` |
+| ADMIN | `/admin`, `/admin/team`, `/admin/preferences`, `/admin/audit`, `/products`, `/categories`, `/reports`, `/suppliers` manage (ADMIN) | `src/app/admin/layout.tsx`, `(app)` |
 
 - Hidden/deferred routes (files exist, remove from nav): `/transfers`, `/intelligence`, `/admin/locations`, `/admin/units`, `/admin/data`, `/admin/workspace`, `/select-workspace`.
 - **Obsolete (do not extend):** `src/app/shop/**`, `src/app/(app)/orders/**`, `src/components/shop/**`, shop/order values in `src/lib/demo.ts`, the "Customer orders" nav item.
-- **Auth (Clerk Core 3, `@clerk/nextjs` v7) is connected** — Google sign-in at `/sign-in` and `/sign-up` (catch-all routes). Owner: Shoaeb. `src/proxy.ts` runs `clerkMiddleware()` but protects nothing by itself. Protected layouts wrap content in `<Suspense><RequireSignIn>…</RequireSignIn></Suspense>` (`src/components/auth/require-sign-in.tsx`), which only checks *signed in*; role checks come with `requireRole()` (`TEAM_HANDOFF.md` §8). Every API route must check auth itself.
+- **Auth (Clerk Core 3, `@clerk/nextjs` v7)** — Google sign-in at `/sign-in` (with "Login as") and `/sign-up`. Owner: the auth/schema owner (not Shoaeb). `src/proxy.ts` runs `clerkMiddleware()` but protects nothing by itself. Authorization is database-backed: `requirePageRole()` (via `<ProtectedPage minimum="…">`) on every page and `requireRole()` in the API handler; both use `getAccess()`, which only returns an ACTIVE membership. Never re-implement these helpers.
 - Clerk Core 3 rules: `createRouteMatcher` is deprecated — don't use it. `<SignedIn>`/`<SignedOut>` were removed; use `<Show when="signed-in">`. Under `cacheComponents`, anything calling `auth()`/`currentUser()` or rendering `<Show>` in a Server Component must be inside `<Suspense>`, and so must `<SignIn />`/`<SignUp />`. Clerk keys live in `.env.local` only.
 - `/admin/*` and every role-gated page/API must be protected by a **server-side** role check. Hiding the link is not access control.
 - With `cacheComponents`, client hooks that read the URL (`usePathname`, `useParams`) must sit inside `<Suspense>` on any route below a dynamic segment, or the build fails. See `app-shell.tsx`.
@@ -129,7 +129,7 @@ Follow the structure in doc 07, §3. Key points:
 
 Follow the corrected phases in doc 07 §5 and `TEAM_HANDOFF.md` §9:
 
-1. Foundation (schema folder, identity tables, Clerk, `requireRole`, seed script, CI)
+1. Foundation (schema folder, identity tables, Clerk, `requireRole` — done; first-Admin bootstrap and CI still open)
 2. Catalogue (products, categories, suppliers) **and** inventory engine (stock in/out) in parallel
 3. Screens (inventory, stock in/out, movements, dashboards)
 4. Reports, hardening, cross-role and concurrency tests
@@ -155,8 +155,10 @@ npm run build        # production build (also type-checks)
 npm run lint         # ESLint
 npm run typecheck    # generate route types + tsc
 npm run db:generate  # create a migration from src/server/db/schema.ts
-npm run db:migrate   # apply migrations (uses DATABASE_URL_UNPOOLED)
+npm run db:migrate   # guarded runner; refuses the live DB's unknown migration history
 npm run db:studio    # browse the database
+npm test             # unit tests (offline, no database)
+npm run test:live    # real tables, rolled-back transactions; read-only against real data
 ```
 
 (`db:generate` reads the schema configured in `drizzle.config.ts`; when the schema is split into `src/server/db/schema/`, the config owner updates the path.)
@@ -167,3 +169,5 @@ npm run db:studio    # browse the database
 - App traffic uses the pooled `DATABASE_URL` via `src/server/db/index.ts` (Neon serverless `Pool` + Drizzle, which supports the interactive transactions stock posting needs). Migrations use the direct `DATABASE_URL_UNPOOLED`.
 - Schema changes go through Drizzle migrations only — never ad-hoc SQL against the database. Test migrations on a Neon branch first. Follow the migration coordination rules in `TEAM_HANDOFF.md` §8.
 - Neon agent skills are installed in `.claude/skills/` (`neon`, `neon-postgres`).
+- The live database was created outside this checkout. **Do not apply the repo's initial migrations to its `public` schema** and do not run `db:generate`/`db:migrate` against it without the schema owner.
+- If your network's DNS refuses `*.neon.tech`: `NODE_OPTIONS="--require ./scripts/use-public-dns.cjs" npm run dev` (opt-in; only affects that Node process; the test runners apply it automatically).

@@ -5,7 +5,7 @@ import { shopRoute } from "@/server/shop/handler";
 /**
  * POST /api/v1/catalog/demo-checkout — SIMULATED payment. Requires an Idempotency-Key.
  * No database writes, no stock movements, no payment gateway: the order is returned to
- * the browser, which stores it locally. See TEAM_HANDOFF.md §13.
+ * the browser, which stores it locally. See TEAM_HANDOFF.md §14.
  */
 export function POST(request: Request) {
   return shopRoute(request, async ({ access, body }) => {

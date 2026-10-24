@@ -8,7 +8,7 @@ The application includes Clerk sign-in, server-checked USER/STAFF/ADMIN membersh
 
 Use Node 24. Install with `npm ci`, copy `.env.example` to `.env.local`, fill in Neon and Clerk credentials, and run `npm run dev`. Open http://localhost:3000.
 
-Secrets stay in the Git-ignored `.env.local`. Enable Google in your Clerk application's social connections. Google OAuth is configured in the supplied development instance, but interactive Google sign-in must still be tested in the browser.
+Secrets stay in the Git-ignored `.env.local`. If your network's DNS refuses `*.neon.tech` (host fails to resolve), start the app with `NODE_OPTIONS="--require ./scripts/use-public-dns.cjs" npm run dev` — it affects only that process. Enable Google in your Clerk application's social connections. Google OAuth is configured in the supplied development instance, but interactive Google sign-in must still be tested in the browser.
 
 ## Add your real data
 
@@ -28,7 +28,8 @@ The supplied live database was initialized outside this checkout and has a diffe
 
 ## Verification
 
-- `npm test` — unit and API authorization tests; database tests skip unless run through the dedicated runner.
+- `npm test` — unit tests: an authorization matrix over every API endpoint, CSV/date/low-stock rules, navigation-link integrity. Offline.
+- `npm run test:live` — runs the real API handler and services against the real tables of the configured database inside transactions that are always rolled back, plus read-only reconciliation checks of the real workspace (balances vs movements, counts, pagination). Needs `.env.local`; never commits or migrates.
 - `npm run test:db` — creates a disposable schema over the direct Neon connection, tests local migrations and stock transactions, then removes only that schema.
 - `npm run db:check` — checks migrations in a private schema inside a transaction and rolls everything back.
 - `npm run lint`, `npm run typecheck`, `npm run build` — static checks and production build.

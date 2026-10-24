@@ -13,7 +13,8 @@
     "db:studio": "drizzle-kit studio",
     "test": "vitest run",
     "test:db": "tsx scripts/test-db.ts",
-    "db:check": "tsx scripts/migrate.ts --check"
+    "db:check": "tsx scripts/migrate.ts --check",
+    "test:live": "vitest run --config vitest.live.config.mts"
   },
   "dependencies": {
     "@clerk/nextjs": "^7.9.20",

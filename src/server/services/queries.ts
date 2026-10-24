@@ -5,6 +5,7 @@ import { db } from "../db";
 import { balances, products, categories, workspaces, movements, users, suppliers } from "../db/schema";
 import { stockStatus } from "../../modules/inventory/stock-status";
 import { ensure } from "../errors";
+import { workspaceTimezone } from "../../modules/reports/timezone";
 
 const productQuery = z.object({ search: z.string().max(180).optional(), categoryId: z.uuid().optional(), stock: z.enum(["all", "low", "out", "in"]).default("all"), status: z.enum(["active", "archived", "all"]).default("active"), limit: z.coerce.number().int().min(1).max(200).default(100), cursor: z.uuid().optional() }).strict();
 export async function listProducts(access: Access, raw: Record<string, string> = {}) {
@@ -32,7 +33,7 @@ export async function getProduct(access: Access, id: string) {
   const [balance] = await db.select().from(balances).where(and(eq(balances.productId, id), eq(balances.workspaceId, access.workspaceId), eq(balances.locationId, access.locationId)));
   return { ...product, quantity: balance?.quantityOnHand ?? "0" };
 }
-const movementQuery = z.object({ productId: z.uuid().optional(), supplierId: z.uuid().optional(), actorId: z.uuid().optional(), type: z.enum(["STOCK_IN", "STOCK_OUT"]).optional(), from: z.iso.date().optional(), to: z.iso.date().optional(), cursor: z.uuid().optional(), limit: z.coerce.number().int().min(1).max(200).default(100) }).strict();
+const movementQuery = z.object({ productId: z.uuid().optional(), supplierId: z.uuid().optional(), actorId: z.uuid().optional(), type: z.enum(["STOCK_IN", "STOCK_OUT"]).optional(), from: z.iso.date().optional(), to: z.iso.date().optional(), cursor: z.uuid().optional(), limit: z.coerce.number().int().min(1).max(200).default(100) }).strict().refine(q => !q.from || !q.to || q.from <= q.to, { message: "`from` must not be after `to`.", path: ["from"] });
 export async function listMovements(access: Access, raw: Record<string, string> = {}) {
   const query = movementQuery.parse(raw);
   const conditions: SQL[] = [eq(movements.workspaceId, access.workspaceId)];
@@ -40,12 +41,19 @@ export async function listMovements(access: Access, raw: Record<string, string> 
   if (query.supplierId) conditions.push(eq(movements.supplierId, query.supplierId));
   if (query.actorId) conditions.push(eq(movements.createdBy, query.actorId));
   if (query.type) conditions.push(eq(movements.movementType, query.type));
-  if (query.from) conditions.push(sql`${movements.createdAt} >= ${query.from}::date`);
-  if (query.to) conditions.push(sql`${movements.createdAt} < ${query.to}::date + interval '1 day'`);
+  if (query.from || query.to) {
+    // Dates are whole days in the WORKSPACE timezone, both ends inclusive: [from 00:00, day-after-to 00:00).
+    const [workspace] = await db.select({ settings: workspaces.settings }).from(workspaces).where(eq(workspaces.id, access.workspaceId));
+    const timezone = workspaceTimezone(workspace?.settings);
+    if (query.from) conditions.push(sql`${movements.occurredAt} >= (${query.from}::date)::timestamp at time zone ${timezone}`);
+    if (query.to) conditions.push(sql`${movements.occurredAt} < ((${query.to}::date + 1)::timestamp at time zone ${timezone})`);
+  }
   if (query.cursor) {
-    const [anchor] = await db.select({ date: movements.createdAt, id: movements.id }).from(movements).where(and(eq(movements.id, query.cursor), eq(movements.workspaceId, access.workspaceId)));
+    const [anchor] = await db.select({ id: movements.id }).from(movements).where(and(eq(movements.id, query.cursor), eq(movements.workspaceId, access.workspaceId)));
     ensure(anchor, "INVALID_CURSOR", "Invalid page cursor.", 400);
-    conditions.push(sql`(${movements.createdAt},${movements.id}) < (${anchor.date.toISOString()}::timestamptz,${anchor.id}::uuid)`);
+    // Compare against the anchor row's own timestamp inside Postgres. Round-tripping it through a JS Date truncates
+    // microseconds to milliseconds, which silently skipped rows (history and CSV exports lost entries).
+    conditions.push(sql`(${movements.createdAt},${movements.id}) < (select a.created_at, a.id from ${movements} a where a.id = ${anchor.id}::uuid and a.workspace_id = ${access.workspaceId}::uuid)`);
   }
   const rows = await db.select({ movement: movements, productName: products.name, sku: products.sku, actor: users.displayName, supplier: suppliers.name }).from(movements).innerJoin(products, and(eq(products.id, movements.productId), eq(products.workspaceId, access.workspaceId))).innerJoin(users, eq(users.id, movements.createdBy)).leftJoin(suppliers, and(eq(suppliers.id, movements.supplierId), eq(suppliers.workspaceId, access.workspaceId))).where(and(...conditions)).orderBy(desc(movements.createdAt), desc(movements.id)).limit(query.limit + 1);
   const items = rows.slice(0, query.limit).map(row => ({ ...row.movement, productName: row.productName, sku: row.sku, actor: row.actor, supplier: row.supplier }));
@@ -58,4 +66,29 @@ export async function summary(access: Access) {
   const [totals] = await db.select({ products: sql<number>`count(*)::int`, out: sql<number>`count(*) filter (where ${quantity}=0)::int`, low: sql<number>`count(*) filter (where ${quantity}<=coalesce(${products.lowStockThreshold},${threshold}::numeric))::int` }).from(products).leftJoin(balances, and(eq(balances.productId, products.id), eq(balances.workspaceId, access.workspaceId), eq(balances.locationId, access.locationId))).where(and(eq(products.workspaceId, access.workspaceId), eq(products.isActive, true)));
   const recent = await listMovements(access, { limit: "10" });
   return { ...totals, workspace: workspace?.name ?? "Ziggy", recent: recent.items };
+}
+
+const alertQuery = z.object({ limit: z.coerce.number().int().min(1).max(200).default(100) }).strict();
+/**
+ * Low-stock alerts: ACTIVE products with quantity_on_hand <= threshold (product
+ * threshold, else workspace default). A product with no balance row counts as
+ * zero. Out-of-stock comes first, then the lowest quantities, so the most urgent
+ * items are never cut off by the page limit. `total` is the full alert count.
+ */
+export async function lowStockAlerts(access: Access, raw: Record<string, string> = {}) {
+  const { limit } = alertQuery.parse(raw);
+  const [workspace] = await db.select().from(workspaces).where(eq(workspaces.id, access.workspaceId));
+  const defaultThreshold = workspace?.settings.defaultLowStockThreshold ?? "10";
+  const quantity = sql<string>`coalesce(${balances.quantityOnHand},0)`;
+  const threshold = sql<string>`coalesce(${products.lowStockThreshold},${defaultThreshold}::numeric)`;
+  const rows = await db
+    .select({ product: products, quantity, category: categories.name, total: sql<number>`count(*) over()::int` })
+    .from(products)
+    .leftJoin(balances, and(eq(balances.workspaceId, access.workspaceId), eq(balances.locationId, access.locationId), eq(balances.productId, products.id)))
+    .leftJoin(categories, and(eq(categories.id, products.categoryId), eq(categories.workspaceId, access.workspaceId)))
+    .where(and(eq(products.workspaceId, access.workspaceId), eq(products.isActive, true), sql`${quantity} <= ${threshold}`))
+    .orderBy(sql`(${quantity} > 0)`, asc(quantity), asc(products.name), asc(products.id))
+    .limit(limit);
+  const items = rows.map(row => ({ ...row.product, quantity: row.quantity, category: row.category, stockStatus: stockStatus(row.quantity, row.product.lowStockThreshold, defaultThreshold) }));
+  return { items, nextCursor: null as string | null, total: rows[0]?.total ?? 0 };
 }

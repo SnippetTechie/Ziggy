@@ -9,6 +9,12 @@ export function destination(role: Role | null, requested: string | null | undefi
   const allowed = canAccess(role, wanted);
   return { path: landings[allowed ? wanted : role], denied: !allowed };
 }
+export const viewCookie = "ziggy_view";
+/** The role a member chose at sign-in, clamped so it can never exceed the real role. Presentation only. */
+export function viewRole(role: Role, chosen: string | null | undefined): Role {
+  const wanted = chosen === "ADMIN" || chosen === "STAFF" || chosen === "USER" ? chosen : role;
+  return canAccess(role, wanted) ? wanted : role;
+}
 export function mayChangeMember(oldRole: Role, oldStatus: string, newRole: Role, newStatus: string, activeAdmins: number) {
   return !(oldRole === "ADMIN" && oldStatus === "ACTIVE" && (newRole !== "ADMIN" || newStatus !== "ACTIVE") && activeAdmins <= 1);
 }
