@@ -1,11 +1,15 @@
-import { BarChart3, Boxes, ClipboardList, History, LayoutDashboard, Package, Settings, SlidersHorizontal, Tags, Truck, Users, ArrowDownToLine, ArrowUpFromLine, type LucideIcon } from "lucide-react";
+import { BarChart3, Boxes, ClipboardList, History, LayoutDashboard, Package, Settings, SlidersHorizontal, Tags, Truck, Users, ArrowDownToLine, ArrowUpFromLine, ShoppingCart, ReceiptText, type LucideIcon } from "lucide-react";
 import type { Role } from "@/modules/access/policy";
-export type NavItem = { label: string; href: string; icon: LucideIcon; minimum: Role };
+export type NavItem = { label: string; href: string; icon: LucideIcon; minimum: Role; /** Show only to exactly this role (e.g. the USER shopping links). */ only?: Role };
 export type NavSection = { title?: string; items: NavItem[] };
 export const appNav: NavSection[] = [
   { title: "Workspace", items: [
     { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard, minimum: "STAFF" },
     { label: "Inventory", href: "/inventory", icon: Boxes, minimum: "USER" },
+  ] },
+  { title: "Demo store", items: [
+    { label: "Cart", href: "/cart", icon: ShoppingCart, minimum: "USER", only: "USER" },
+    { label: "My demo orders", href: "/my-orders", icon: ReceiptText, minimum: "USER", only: "USER" },
   ] },
   { title: "Stock", items: [
     { label: "Stock in", href: "/purchasing", icon: ArrowDownToLine, minimum: "STAFF" },

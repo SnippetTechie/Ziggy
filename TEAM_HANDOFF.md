@@ -29,7 +29,7 @@ One Next.js app, one database, one set of inventory services, one design system.
 
 | Role | Dashboard | Landing route | Purpose |
 |---|---|---|---|
-| `USER` | Inventory viewer (default) | `/inventory` | Search/filter products, check stock availability. Read-only: no cart, no checkout, no stock changes. |
+| `USER` | Inventory viewer (default) | `/inventory` | Search/filter products, check stock availability. Never changes stock. Also has the **demo shopping extension** in §13 (cart + simulated checkout, no real stock effect). |
 | `STAFF` | Operations | `/dashboard` | Record stock in/out, review movements and low-stock items. |
 | `ADMIN` | Administration | `/admin` | Manage products, categories, suppliers, members; stock operations; alerts, summaries, reports. |
 
@@ -207,3 +207,34 @@ Reusable (keep): logo, `DESIGN.md` tokens, `app-shell.tsx`, `wireframe/` primiti
 6. Stock-out reasons and stock-in reasons use a fixed list (doc 03, `stock_movements` reason codes); confirm labels with the supervisor.
 7. Docs 02, 03, 04, 06, 07 were truncated in their source. The MVP tables (`inventory_balances`, `stock_movements`, `idempotency_keys`) and sections are written fresh in this change and are proposals until the team agrees.
 8. Product images, unit conversions, valuation and the Python AI service are deferred; Clerk redirect mechanics (`/auth/continue`) must be confirmed against current Clerk docs at implementation time.
+
+## 13. USER demo shopping extension (explicit exception to the inventory-only scope)
+
+> Added on request as a **demo-only** extension. It does not reinstate the superseded storefront: no real payments, no fulfilment, no shopper accounts, and **no effect on real inventory**. The obsolete `src/app/shop/**`, `(app)/orders/**` and `src/components/shop/**` stay untouched and are still scheduled for cleanup (§10).
+
+**What USER gets** (all roles can open the URLs; only USER sees the nav links and header cart badge): product-card catalog with images, search / category / availability / sort, product detail with quantity, cart, simulated checkout, "My demo orders".
+
+| Route | Notes |
+|---|---|
+| `/inventory` | USER → card catalog; STAFF/ADMIN keep the operational table. `/catalog` shows the card view to any role |
+| `/inventory/[productId]` | USER and `demo-…` ids → shopping detail; STAFF/ADMIN keep the operational detail for live products |
+| `/cart`, `/checkout`, `/my-orders`, `/my-orders/[ref]` | min role USER |
+
+| API (`/api/v1/catalog…`, min role USER; own route files, the main catch-all handler is untouched) | |
+|---|---|
+| `GET /catalog?source=demo\|live&search&categoryId&stock&sort` | USER-safe cards only: no supplier, threshold, cost, workspace or timestamps |
+| `GET /catalog/{id}` | demo ids start `demo-`; live ids are UUIDs |
+| `POST /catalog/validate` | re-prices and re-checks cart lines (read-only) |
+| `POST /catalog/demo-checkout` | `Idempotency-Key` required; **simulation only** |
+
+**Two sources, never mixed**
+- *Live inventory*: read-only via the existing `listProducts` (workspace-scoped, active products). **Gap:** the schema has no selling price and no image field, so live products show "Price not set", a photo placeholder, and cannot be added to the cart. Live checkout needs (1) a `price` (numeric, per product or price list) and (2) an `image_url` on `products`: a schema change for the catalogue owner, not done here.
+- *Demo store*: fictional products, prices and stock in `src/modules/demo-store/demo-catalog.ts`, ids `demo-*`, SKUs `DEMO-*`, labelled "Demo" in the UI.
+
+**Checkout simulation**: Demo UPI / Demo Card. No card number, CVV, UPI PIN or bank data is collected or accepted (request schema is `strict`). The outcome is chosen with visible "Demo controls": approve, decline, or fail-first-then-succeed. The order reference is deterministic from user + `Idempotency-Key`, and the UI locks double submits. The server is stateless: no database access, no `stock_movements`, no balance change (a unit test fails if demo code imports the database or `postStock`). Demo stock is not decremented either.
+
+**Persistence limits**: cart selections (`productId`, quantity, seen price) and demo orders live in this browser's `localStorage`, keyed `ziggy:demo-cart:v1:{workspaceId}:{userId}` and `ziggy:demo-orders:v1:…` (max 25 orders). Clearing site data or switching device loses them; there is no server-side order history. Prices and availability are re-validated server-side when the cart opens and at checkout (409 `CART_CHANGED` with per-line issues).
+
+**Images**: 12 Wikimedia Commons photos in `public/images/demo/`, with source, author, licence and alt text in `public/images/demo/manifest.json`. Most are CC BY / CC BY-SA, so the attribution shown on each product page must be kept.
+
+**Verification status**: unit/route tests, lint, typecheck and production build pass. UI flows were exercised in a real browser against a mock-backed harness (no sign-in). The signed-in path (Clerk, real `/api/v1/me`, the live-inventory tab against Neon) still needs a manual check with a USER account.

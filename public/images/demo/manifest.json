@@ -1,0 +1,102 @@
+{
+  "note": "Photographs downloaded from Wikimedia Commons (thumbnail renditions, up to 960 px wide) for the DEMO catalog only. Files are unmodified apart from Commons' own resizing. Attribution is shown on each product detail page; CC BY / CC BY-SA files require credit to the author and a link to the licence. CC BY-SA applies only to the image file itself, not to the surrounding application code.",
+  "retrieved": "2026-10-24",
+  "images": {
+    "spiral-notebook": {
+      "file": "/images/demo/spiral-notebook.jpg",
+      "alt": "Two A7 spiral-bound notebooks, one beige and one yellow, lying on a dark surface",
+      "source": "https://commons.wikimedia.org/wiki/File:Newone_-_Grand_spiral_notebook_A7.jpg",
+      "author": "Newone",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+    },
+    "ballpoint-pen": {
+      "file": "/images/demo/ballpoint-pen.jpg",
+      "alt": "Brushed stainless steel ballpoint pen resting on beige fabric",
+      "source": "https://commons.wikimedia.org/wiki/File:Parker_Vector_Stainless_Steel_Ballpoint_Pen.jpg",
+      "author": "Kevin Brown",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+    },
+    "scientific-calculator": {
+      "file": "/images/demo/scientific-calculator.jpg",
+      "alt": "Casio fx-991MS scientific calculator showing a square-root calculation",
+      "source": "https://commons.wikimedia.org/wiki/File:Casio_fx-991MS.jpg",
+      "author": "Shwangtianyuan",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+    },
+    "usb-flash-drive": {
+      "file": "/images/demo/usb-flash-drive.jpg",
+      "alt": "Silver SanDisk USB-C flash drive next to a 50 euro cent coin for scale",
+      "source": "https://commons.wikimedia.org/wiki/File:USB_flash_drive,_1TB.jpg",
+      "author": "EU+Mexico",
+      "license": "CC0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/deed.en"
+    },
+    "safety-goggles": {
+      "file": "/images/demo/safety-goggles.jpg",
+      "alt": "Two pairs of clear laboratory safety goggles with elastic straps",
+      "source": "https://commons.wikimedia.org/wiki/File:Safety_Goggles.jpg",
+      "author": "DJSparky",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+    },
+    "lab-coat": {
+      "file": "/images/demo/lab-coat.jpg",
+      "alt": "White laboratory coats displayed on chrome stands",
+      "source": "https://commons.wikimedia.org/wiki/File:Lab_coats.jpg",
+      "author": "Pi. from Leiden, Holland",
+      "license": "CC BY 2.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/2.0"
+    },
+    "glass-beaker": {
+      "file": "/images/demo/glass-beaker.jpg",
+      "alt": "100 ml borosilicate glass laboratory beaker with graduation marks",
+      "source": "https://commons.wikimedia.org/wiki/File:Glass_100ml_beaker.jpg",
+      "author": "Lilly_M",
+      "license": "CC BY-SA 3.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+    },
+    "microscope": {
+      "file": "/images/demo/microscope.jpg",
+      "alt": "Black and brass student laboratory compound microscope",
+      "source": "https://commons.wikimedia.org/wiki/File:Microscope.jpg",
+      "author": "Zephyris at English Wikipedia",
+      "license": "CC BY-SA 3.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+    },
+    "digital-multimeter": {
+      "file": "/images/demo/digital-multimeter.jpg",
+      "alt": "Two yellow-orange digital multimeters with red and black test leads",
+      "source": "https://commons.wikimedia.org/wiki/File:SE_MM2003_Digital_Multimeter_VoltandAmp.jpg",
+      "author": "Emspangler at English Wikiversity",
+      "license": "Public domain",
+      "licenseUrl": "https://commons.wikimedia.org/wiki/Template:PD-user"
+    },
+    "arduino-uno": {
+      "file": "/images/demo/arduino-uno.jpg",
+      "alt": "Blue Arduino UNO-compatible microcontroller board",
+      "source": "https://commons.wikimedia.org/wiki/File:Arduino_Uno_board.jpg",
+      "author": "JrawX",
+      "license": "CC0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/deed.en"
+    },
+    "water-bottle": {
+      "file": "/images/demo/water-bottle.jpg",
+      "alt": "Stainless steel and blue reusable water bottles with black caps",
+      "source": "https://commons.wikimedia.org/wiki/File:Metal_Water_Bottles.jpeg",
+      "author": "Amraepowell",
+      "license": "CC0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/deed.en"
+    },
+    "stapler": {
+      "file": "/images/demo/stapler.jpg",
+      "alt": "Lime green desktop stapler",
+      "source": "https://commons.wikimedia.org/wiki/File:A_green_stapler.jpg",
+      "author": "Jiafei Slay Queen",
+      "license": "CC0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/deed.en"
+    }
+  }
+}
