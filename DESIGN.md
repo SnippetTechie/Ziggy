@@ -36,6 +36,9 @@ colors:
   success-pale: "#c7f0da"
   error: "#9e0a0a"
   error-deep: "#cc001f"
+  error-pale: "#fde2e4"
+  warning-deep: "#6b3d00"
+  warning-pale: "#fdecc8"
 
 typography:
   display-xl:
@@ -331,6 +334,8 @@ The system's signature gesture is **shape geometry**: 16px radius (`{rounded.md}
 - **Error Deep** (`{colors.error-deep}` — `#cc001f`): deepened error background where the regular error tone needs more contrast. Note: this matches the primary-pressed value but in error context represents semantic destructiveness.
 - **Success Deep** (`{colors.success-deep}` — `#103c25`): in-product success messaging.
 - **Success Pale** (`{colors.success-pale}` — `#c7f0da`): pale success-pill background.
+- **Error Pale** (`{colors.error-pale}` — `#fde2e4`): Ziggy addition — background for "out of stock" / "action required" status pills, paired with `{colors.error}` text.
+- **Warning Deep** (`{colors.warning-deep}` — `#6b3d00`) / **Warning Pale** (`{colors.warning-pale}` — `#fdecc8`): Ziggy addition — low-stock and pending-action status pills. Pinterest has no warning tone; inventory needs one.
 - **Focus Outer** (`{colors.focus-outer}` — `#435ee5`): the system's focus-ring blue — appears as a 2px outer outline around focused inputs and buttons.
 - **Focus Inner** (`{colors.focus-inner}` — `#ffffff`): white inner gap inside the focus-ring stack.
 

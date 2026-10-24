@@ -10,7 +10,9 @@ Two interfaces share one app shell and design system:
 - **Ziggy** — day-to-day operations (inventory, sales/issues, transfers, purchasing, reports).
 - **Ziggy Admin** — workspace settings, locations, team and roles, audit history.
 
-**Current state:** specification only — no application code yet. Development starts at Phase 1 of the implementation plan.
+**Current state:** Phase 1 (foundation) in progress. Ziggy, Ziggy Admin, and the consumer shop exist as navigable wireframes with placeholder data. Neon project `ziggy` is linked; no auth, database tables, or business logic yet.
+
+**Next.js 16:** this project uses Next.js 16 with `cacheComponents` and `partialPrefetching` on. APIs differ from older versions — read the relevant guide in `node_modules/next/dist/docs/` before writing Next.js code (see `AGENTS.md`).
 
 ## Specifications
 
@@ -73,6 +75,28 @@ These come straight from the specs. Treat violations as bugs.
 - Use statistical/rule-based forecasting first. An LLM may explain results but is not the numeric forecasting engine.
 - Analytics failures must never block stock operations.
 
+## Interface architecture
+
+One Next.js app, one deployment, one database, three route areas. The two business areas share a single `AppShell` (doc 04 §2: Admin must not feel like a separate product); the shop has its own consumer shell.
+
+| Area | Routes | Who | Layout |
+|---|---|---|---|
+| Ziggy (operations) | `/dashboard`, `/inventory`, `/products`, `/orders`, `/purchasing`, `/sales`, `/transfers`, `/suppliers`, `/reports`, `/intelligence`, `/settings` | ADMIN + STAFF | `src/app/(app)/layout.tsx` |
+| Ziggy Admin | `/admin`, `/admin/workspace`, `/admin/locations`, `/admin/team`, `/admin/units`, `/admin/preferences`, `/admin/audit`, `/admin/data` | ADMIN only | `src/app/admin/layout.tsx` |
+| Shop (consumer) | `/shop/[store]`, `…/products/[productId]`, `…/cart`, `…/checkout`, `…/orders`, `…/orders/[orderId]`, `…/account` | Shoppers | `src/app/shop/[store]/layout.tsx` |
+| Auth | `/sign-in`, `/sign-up`, `/select-workspace` | Everyone | `src/app/(auth)/layout.tsx` |
+
+- The consumer storefront is a scope change recorded in the PRD (§5 "Scope change", FR-09). Shoppers are **not** workspace members; every shop query must be scoped to the store's workspace.
+- Customer orders: shoppers create/read/edit/cancel (edit and cancel only while `Placed`); store users confirm, adjust, fulfil, or cancel at `/orders`. Fulfilment deducts stock as a posted sale through the inventory engine.
+- **Clerk is not connected yet** (a teammate is wiring it). `/sign-in` and `/sign-up` are placeholders with instructions in each file; don't add Clerk code unless asked.
+- With `cacheComponents`, client hooks that read the URL (`usePathname`, `useParams`) must sit inside `<Suspense>` on any route below a dynamic segment, or the build fails. See `app-shell.tsx` and `shop-shell.tsx`.
+- `src/lib/demo.ts` holds wireframe placeholder values (demo store, order, product). Never use it in server logic.
+
+- Navigation for both areas lives in `src/components/layout/nav-config.ts`; the shell is `src/components/layout/app-shell.tsx`.
+- `/admin/*` must be protected by a **server-side** ADMIN role check (Phase 2). Hiding the link in the UI is not access control.
+- Active workspace is not in the URL yet; decide between a `/w/[slug]` prefix and session-held selection when Phase 2 adds membership.
+- `src/components/wireframe/` holds placeholder primitives (`PageHeader`, `StatTile`, `WireTable`, `Placeholder`…). Replace them with real components as each phase lands; don't build features on top of them.
+
 ## Code organization
 
 Follow the structure in doc 07, §3. Key points:
@@ -126,4 +150,19 @@ Critical paths require automated tests:
 
 ## Commands
 
-Not set up yet. Add the dev, build, lint, test, and migration commands here once Phase 1 creates `package.json`.
+```bash
+npm run dev          # start dev server (http://localhost:3000)
+npm run build        # production build (also type-checks)
+npm run lint         # ESLint
+npm run typecheck    # generate route types + tsc
+npm run db:generate  # create a migration from src/server/db/schema.ts
+npm run db:migrate   # apply migrations (uses DATABASE_URL_UNPOOLED)
+npm run db:studio    # browse the database
+```
+
+## Database (Neon)
+
+- One Neon project serves both interfaces. Connection strings live in `.env.local` (git-ignored); `.env.example` lists the variables.
+- App traffic uses the pooled `DATABASE_URL` via `src/server/db/index.ts` (Neon serverless `Pool` + Drizzle, which supports the interactive transactions stock posting needs). Migrations use the direct `DATABASE_URL_UNPOOLED`.
+- Schema changes go through Drizzle migrations only — never ad-hoc SQL against the database. Test migrations on a Neon branch first.
+- Neon agent skills are installed in `.claude/skills/` (`neon`, `neon-postgres`).

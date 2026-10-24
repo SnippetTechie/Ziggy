@@ -78,17 +78,34 @@ For the MVP, purchasing manager responsibilities can be handled by the admin rol
 - Inventory summaries, reports, and CSV export.
 - AI-assisted demand forecasting, stock-out risk, and reorder recommendations.
 - Responsive desktop and mobile web interfaces.
+- Consumer storefront per workspace (see scope change below).
 
 ### Excluded from the MVP
 
 - Full point-of-sale checkout and payment processing.
-- Consumer grocery marketplace.
+- Multi-store consumer marketplace (one storefront per workspace is in scope; a cross-store marketplace is not).
 - Fresh-food and cold-chain workflows.
 - Native mobile applications.
 - Accounting software replacement.
 - Automated AI purchasing or inventory mutations.
 - GST invoicing and complex tax compliance.
 - Batch, lot, and expiry tracking unless separately prioritized.
+
+### Scope change — consumer storefront (October 2026)
+
+The original MVP excluded a consumer marketplace. It now includes a **storefront for each workspace**, so shoppers can order from a single store:
+
+- Shoppers browse the store's catalogue with live availability, add items to a cart, and place an order for home delivery or store pickup.
+- Shoppers can view, edit, and cancel their own orders until the store confirms them.
+- Store users manage customer orders: confirm, adjust quantities, pack, deliver, or cancel.
+- Payment is collected on delivery or at pickup. Online payment processing stays out of scope.
+
+Open decisions:
+
+1. Does placing an order reserve stock, or is stock deducted only when the order is fulfilled?
+2. Which location fulfils an online order, and can one order be fulfilled from several locations?
+3. Are shoppers separate from workspace members (recommended), with their own customer record per store?
+4. Doc 03 needs new tables (`customers`, `customer_addresses`, `customer_orders`, `customer_order_items`), and doc 05 needs shop endpoints.
 
 ## 6. Functional requirements
 
@@ -123,6 +140,10 @@ Generate low-stock and out-of-stock alerts. Provide inventory valuation, movemen
 ### FR-08 — Ziggy Intelligence
 
 Estimate demand, calculate days of stock coverage, identify stock-out risk, and recommend reorder quantities with supporting evidence and limitations.
+
+### FR-09 — Consumer storefront and customer orders
+
+Each workspace can publish a storefront at `/shop/{store}`. Shoppers place, view, edit, and cancel orders (editing and cancelling only before confirmation). Store users confirm, adjust, fulfil, and cancel orders. A fulfilled order deducts stock through the inventory engine as a posted sale, so it follows every stock rule in section 7 (atomic posting, no negative stock, traceable movements).
 
 ## 7. Core business rules
 
