@@ -86,7 +86,18 @@ Follow the structure in doc 07, §3. Key points:
 
 - DB: `snake_case` tables/columns, UUID primary keys, `timestamptz` in UTC.
 - Secrets go in `.env` (never committed); keep `.env.example` updated with placeholder values.
-- UI: restrained, data-first design. Use the color tokens in doc 04 §3.2; status must be conveyed by text/icon, not color alone. Every screen needs loading, empty, success, and error states.
+- Logo: `public/images/ziggy-logo.png` (1254×1254 PNG, white background, orange/red "Z" with grocery cart).
+
+## UI and visual design
+
+**Read `DESIGN.md` (repo root) before writing any UI.** It is the source of truth for visual tokens — colors, typography, spacing, radii, elevation, and component styling (Pinterest-inspired system). Reference its tokens by name (e.g. `{colors.primary}`, `{rounded.md}`) rather than hard-coding values, and follow its Do's/Don'ts and Iteration Guide.
+
+- `DESIGN.md` overrides the color tokens and typography in doc 04 §3.2–3.3. Doc 04 still governs UX: information priorities, design principles, page structure, and accessibility.
+- Pin Sans is proprietary — use **Inter** (DESIGN.md's documented substitute).
+- DESIGN.md describes a photo-heavy consumer site; Ziggy is a data-dense business tool. Adopt its tokens and components, but keep tables, forms, and dense data views readable — don't force masonry grids or 70px heroes onto operational screens.
+- DESIGN.md does not cover form validation, warning, or hover states. Derive these from its existing tokens and add them to DESIGN.md as new component entries.
+- Status must be conveyed by text/icon, not color alone. Every screen needs loading, empty, success, and error states.
+- After editing DESIGN.md, run `npx @google/design.md lint DESIGN.md`.
 
 ## Delivery order
 
