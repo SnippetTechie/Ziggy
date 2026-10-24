@@ -1,14 +1,16 @@
 import { Suspense } from "react";
-import { PageLoading, RequireSignIn } from "@/components/auth/require-sign-in";
-import { AppShell } from "@/components/layout/app-shell";
+import { MemberShell, ShellLoading } from "@/components/auth/member-shell";
 
-/** Ziggy — day-to-day operations. Signed-in users only. */
+/**
+ * Ziggy — inventory views. Requires an ACTIVE workspace member; each page then
+ * enforces its own minimum role (USER / STAFF / ADMIN) with requirePageRole().
+ */
 export default function AppLayout({ children }: LayoutProps<"/">) {
   return (
-    <AppShell variant="app">
-      <Suspense fallback={<PageLoading />}>
-        <RequireSignIn>{children}</RequireSignIn>
-      </Suspense>
-    </AppShell>
+    <Suspense fallback={<ShellLoading />}>
+      <MemberShell variant="app" minRole="USER">
+        {children}
+      </MemberShell>
+    </Suspense>
   );
 }

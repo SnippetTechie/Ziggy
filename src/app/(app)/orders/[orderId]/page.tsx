@@ -1,3 +1,4 @@
+import { requirePageRole } from "@/server/authorization/session";
 import type { Metadata } from "next";
 import { OrderTimeline } from "@/components/shop/order-timeline";
 import { Button, Card, PageHeader, Placeholder, StatusPill, WireTable } from "@/components/wireframe";
@@ -10,7 +11,8 @@ export function generateStaticParams() {
 }
 
 /** Store-side view of a customer order: confirm, adjust, fulfil, or cancel. */
-export default function AdminOrderPage() {
+export default async function AdminOrderPage() {
+  await requirePageRole("ADMIN");
   return (
     <>
       <PageHeader

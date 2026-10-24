@@ -1,35 +1,31 @@
 import type { Metadata } from "next";
-import { Card, FilterChips, PageHeader, Placeholder } from "@/components/wireframe";
+import { Suspense } from "react";
+import { ReportsClient } from "@/components/reports/reports-client";
+import { LoadingBlock } from "@/components/ui/state-cards";
+import { requirePageRole } from "@/server/authorization/session";
 
 export const metadata: Metadata = { title: "Reports" };
 
-const reports = [
-  ["Stock summary", "On-hand quantity and value by product and location"],
-  ["Inventory valuation", "Weighted-average cost valuation at a point in time"],
-  ["Movement history", "Every receipt, sale, issue, adjustment, and transfer"],
-  ["Low stock", "Products at or below their reorder point"],
-  ["Purchasing summary", "Orders, receipts, and outstanding quantities by supplier"],
-  ["Fast & slow movers", "Products ranked by sales velocity"],
-];
-
+/** Stock summary and movement reports with CSV export. ADMIN only. */
 export default function ReportsPage() {
   return (
-    <>
-      <PageHeader
-        title="Reports"
-        description="Every report reconciles with the underlying stock movements and balances."
-        secondaryAction="Export CSV"
-      />
-      <div className="mb-6">
-        <FilterChips chips={["Last 30 days", "This month", "Last quarter", "Custom range"]} />
-      </div>
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {reports.map(([title, hint]) => (
-          <Card key={title} title={title} action="Open">
-            <Placeholder label="Report preview" hint={hint} height="h-32" />
-          </Card>
-        ))}
-      </div>
-    </>
+    <Suspense fallback={<LoadingBlock label="Loading reports" />}>
+      <ReportsContent />
+    </Suspense>
+  );
+}
+
+async function ReportsContent() {
+  const access = await requirePageRole("ADMIN");
+  return (
+    <div className="space-y-6">
+      <header>
+        <h1 className="text-heading-xl text-ink">Reports</h1>
+        <p className="mt-1 max-w-2xl text-body-md text-mute">
+          Stock levels and every stock movement, filterable and exportable as CSV.
+        </p>
+      </header>
+      <ReportsClient timezone={access.workspaceTimezone} />
+    </div>
   );
 }

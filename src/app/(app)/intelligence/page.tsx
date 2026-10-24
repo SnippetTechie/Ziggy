@@ -1,3 +1,4 @@
+import { requirePageRole } from "@/server/authorization/session";
 import type { Metadata } from "next";
 import {
   Button,
@@ -12,7 +13,8 @@ import {
 export const metadata: Metadata = { title: "Ziggy Intelligence" };
 
 /** Doc 06: advisory forecasts, stock-out risk, and reorder recommendations. */
-export default function IntelligencePage() {
+export default async function IntelligencePage() {
+  await requirePageRole("ADMIN");
   return (
     <>
       <PageHeader

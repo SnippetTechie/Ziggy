@@ -13,7 +13,8 @@ export const metadata: Metadata = {
     default: "Ziggy",
     template: "%s · Ziggy",
   },
-  description: "Smart inventory management for grocery shops, wholesalers, and distributors.",
+  description:
+    "Online inventory and stock management for small businesses, college laboratories, and campus stores.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

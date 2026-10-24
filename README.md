@@ -2,7 +2,7 @@
 
 **Online Inventory and Stock Management System** for small businesses, college laboratories, and campus stores.
 
-> **Status:** Phase 1 — clickable wireframes with placeholder data only. **Working:** Clerk sign-in (Google), signed-in check on app pages. **Not built yet:** roles/access control, database tables, API routes, stock logic.
+> **Status:** Phase 1 — clickable wireframes with placeholder data only. **Working:** Clerk sign-in (Google). **On `feat/shoaeb-dashboard-reports` (pending merge):** database-backed roles and access checks, "Login as", staff dashboard, admin overview, low-stock alerts, reports with CSV, member management. **Not built yet:** product/category/supplier CRUD and stock in/out (teammates).
 >
 > **Scope correction:** an earlier version added a consumer storefront (shop, cart, checkout, delivery). That was a misreading of the problem statement and is **superseded**; the shop and customer-order wireframes still in the repo are obsolete and will be removed in a focused cleanup.
 >
@@ -44,7 +44,9 @@ npx neon@latest login
 npx neon@latest link --project-id old-wave-42339493 -y   # writes .env.local
 ```
 
-If the database host fails to resolve (`REFUSED` / `ENOTFOUND`), your network's DNS is blocking `*.aws.neon.tech`. Switch your DNS to `1.1.1.1` / `8.8.8.8`.
+If the database host fails to resolve (`REFUSED` / `ENOTFOUND`), your network's DNS is blocking `*.aws.neon.tech`. Switch your DNS to `1.1.1.1` / `8.8.8.8`, or without changing system settings run `NODE_OPTIONS="--require ./scripts/use-public-dns.cjs" npm run dev` (tests apply this fallback automatically).
+
+**Tests:** `npm test` (all), `npm run test:unit` (offline), `npm run test:integration` (needs `.env.local`; uses the dev database but always rolls back).
 
 ## Where things are
 
@@ -60,4 +62,4 @@ If the database host fails to resolve (`REFUSED` / `ENOTFOUND`), your network's 
 
 `npm run dev` · `build` · `lint` · `typecheck` · `db:generate` · `db:migrate` · `db:studio`
 
-Installed: Next.js 16, React 19, Tailwind 4, Drizzle, Neon client, Clerk (`@clerk/nextjs`). Planned (not installed): Zod, shadcn/ui, a decimal library, Vitest, Playwright.
+Installed: Next.js 16, React 19, Tailwind 4, Drizzle, Neon client, Clerk (`@clerk/nextjs`), Zod, decimal.js, Vitest. Planned (not installed): shadcn/ui, Playwright.

@@ -1,9 +1,11 @@
+import { requirePageRole } from "@/server/authorization/session";
 import type { Metadata } from "next";
 import { Card, PageHeader, Placeholder } from "@/components/wireframe";
 
 export const metadata: Metadata = { title: "Settings" };
 
-export default function SettingsPage() {
+export default async function SettingsPage() {
+  await requirePageRole("USER");
   return (
     <>
       <PageHeader title="Settings" description="Your personal profile and preferences." />

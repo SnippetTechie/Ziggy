@@ -1,3 +1,4 @@
+import { requirePageRole } from "@/server/authorization/session";
 import type { Metadata } from "next";
 import { Button, Card, PageHeader, Placeholder } from "@/components/wireframe";
 
@@ -5,7 +6,8 @@ export const metadata: Metadata = { title: "Workspace profile" };
 
 const fields = ["Business name", "Workspace URL (slug)", "Default currency", "Timezone"];
 
-export default function WorkspaceProfilePage() {
+export default async function WorkspaceProfilePage() {
+  await requirePageRole("ADMIN");
   return (
     <>
       <PageHeader title="Workspace profile" description="Your business details, currency, and timezone." />

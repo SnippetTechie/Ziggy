@@ -1,17 +1,31 @@
 import type { Metadata } from "next";
-import { ListPage } from "@/components/wireframe";
+import { Suspense } from "react";
+import { TeamClient } from "@/components/team/team-client";
+import { LoadingBlock } from "@/components/ui/state-cards";
+import { requirePageRole } from "@/server/authorization/session";
 
 export const metadata: Metadata = { title: "Team & roles" };
 
-export default function Page() {
+/** Grant, change, and suspend member access. ADMIN only. */
+export default function TeamPage() {
   return (
-    <ListPage
-      title="Team & roles"
-      description="Invite staff and control what they can do. Roles are enforced on the server."
-      primaryAction="Invite member"
-      chips={["Active", "Invited", "Suspended"]}
-      columns={["Member", "Email", "Role", "Status", "Joined", "Last active"]}
-      note="Roles: Admin manages the workspace; Staff performs day-to-day stock operations."
-    />
+    <Suspense fallback={<LoadingBlock label="Loading team" />}>
+      <TeamContent />
+    </Suspense>
+  );
+}
+
+async function TeamContent() {
+  const access = await requirePageRole("ADMIN");
+  return (
+    <div className="space-y-6">
+      <header>
+        <h1 className="text-heading-xl text-ink">Team &amp; roles</h1>
+        <p className="mt-1 max-w-2xl text-body-md text-mute">
+          Decide who can use {access.workspaceName} and what they can do. Roles are enforced on the server.
+        </p>
+      </header>
+      <TeamClient currentUserId={access.userId} />
+    </div>
   );
 }

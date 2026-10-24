@@ -5,13 +5,18 @@ import Link from "next/link";
 import { UserButton } from "@clerk/nextjs";
 import { usePathname } from "next/navigation";
 import { Suspense, useState } from "react";
-import { ChevronDown, Menu, Search, Shield, X, ArrowLeft, MapPin } from "lucide-react";
-import { adminNav, appNav, type NavSection } from "./nav-config";
+import { Menu, Shield, X, ArrowLeft } from "lucide-react";
+import type { Role } from "@/server/authorization/roles";
+import { AccessNotice } from "./access-notice";
+import { adminNav, appNav, navForRole, type NavSection } from "./nav-config";
 
 type Variant = "app" | "admin";
 
 type AppShellProps = {
   variant: Variant;
+  /** The signed-in member's role, resolved on the server. Only filters links. */
+  role: Role;
+  workspaceName: string;
   children: React.ReactNode;
 };
 
@@ -20,18 +25,20 @@ type AppShellProps = {
  * the same design system and shell). The variant only changes the label,
  * navigation, and the cross-link between the two areas.
  */
-export function AppShell({ variant, children }: AppShellProps) {
+export function AppShell({ variant, role, workspaceName, children }: AppShellProps) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   // Nav config holds icon components, so it is resolved here on the client
-  // rather than passed in as a prop from a Server Component.
-  const nav = variant === "admin" ? adminNav : appNav;
+  // rather than passed in as a prop from a Server Component. Hiding links is
+  // convenience only: every page re-checks the role on the server.
+  const nav = navForRole(variant === "admin" ? adminNav : appNav, role);
+  const home = variant === "admin" ? "/admin" : role === "USER" ? "/inventory" : "/dashboard";
 
   return (
     <div className="min-h-screen lg:grid lg:grid-cols-[264px_1fr]">
       {/* Desktop sidebar */}
       <aside className="hidden border-r border-hairline bg-canvas lg:block">
         <div className="sticky top-0 flex h-screen flex-col">
-          <Sidebar variant={variant} nav={nav} />
+          <Sidebar variant={variant} role={role} home={home} nav={nav} />
         </div>
       </aside>
 
@@ -51,15 +58,20 @@ export function AppShell({ variant, children }: AppShellProps) {
             >
               <X className="size-5" />
             </button>
-            <Sidebar variant={variant} nav={nav} onNavigate={() => setDrawerOpen(false)} />
+            <Sidebar variant={variant} role={role} home={home} nav={nav} onNavigate={() => setDrawerOpen(false)} />
           </aside>
         </div>
       )}
 
       <div className="flex min-w-0 flex-col">
-        <TopBar variant={variant} onOpenMenu={() => setDrawerOpen(true)} />
+        <TopBar workspaceName={workspaceName} onOpenMenu={() => setDrawerOpen(true)} />
         <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
-          <div className="mx-auto w-full max-w-[1280px]">{children}</div>
+          <div className="mx-auto w-full max-w-[1280px]">
+            <Suspense>
+              <AccessNotice />
+            </Suspense>
+            {children}
+          </div>
         </main>
       </div>
     </div>
@@ -68,14 +80,17 @@ export function AppShell({ variant, children }: AppShellProps) {
 
 function Sidebar({
   variant,
+  role,
+  home,
   nav,
   onNavigate,
 }: {
   variant: Variant;
+  role: Role;
+  home: string;
   nav: NavSection[];
   onNavigate?: () => void;
 }) {
-  const home = variant === "admin" ? "/admin" : "/dashboard";
 
   return (
     <>
@@ -97,6 +112,7 @@ function Sidebar({
 
       <div className="border-t border-hairline p-3">
         {variant === "app" ? (
+          role === "ADMIN" && (
           <Link
             href="/admin"
             onClick={onNavigate}
@@ -105,6 +121,7 @@ function Sidebar({
             <Shield className="size-[18px]" />
             Ziggy Admin
           </Link>
+          )
         ) : (
           <Link
             href="/dashboard"
@@ -171,7 +188,13 @@ function NavLinks({ nav, home, pathname, onNavigate }: NavLinksProps & { pathnam
   );
 }
 
-function TopBar({ variant, onOpenMenu }: { variant: Variant; onOpenMenu: () => void }) {
+function TopBar({ workspaceName, onOpenMenu }: { workspaceName: string; onOpenMenu: () => void }) {
+  const initials = workspaceName
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase())
+    .join("");
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-hairline bg-canvas px-4 sm:px-6 lg:px-8">
       <button
@@ -182,33 +205,15 @@ function TopBar({ variant, onOpenMenu }: { variant: Variant; onOpenMenu: () => v
         <Menu className="size-5" />
       </button>
 
-      {/* Workspace switcher — a user can belong to several workspaces (PRD §11) */}
-      <button className="flex items-center gap-2 rounded-md px-2 py-1.5 text-body-sm font-semibold text-ink hover:bg-surface-card">
+      {/* One workspace per member in the prototype (PRD §11), so this is a label, not a switcher. */}
+      <div className="flex items-center gap-2 rounded-md px-2 py-1.5 text-body-sm font-semibold text-ink">
         <span className="grid size-7 place-items-center rounded-sm bg-surface-card text-caption font-bold">
-          SG
+          {initials || "Z"}
         </span>
-        <span className="hidden sm:inline">Sharma Groceries</span>
-        <ChevronDown className="size-4 text-mute" />
-      </button>
+        <span className="hidden sm:inline">{workspaceName}</span>
+      </div>
 
-      {variant === "app" && (
-        <button className="hidden items-center gap-2 rounded-full bg-surface-card px-4 py-2 text-body-sm font-semibold text-ink md:flex">
-          <MapPin className="size-4 text-mute" />
-          All locations
-          <ChevronDown className="size-4 text-mute" />
-        </button>
-      )}
-
-      <div className="ml-auto flex flex-1 items-center justify-end gap-3">
-        <label className="relative hidden w-full max-w-sm sm:block">
-          <span className="sr-only">Search</span>
-          <Search className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-mute" />
-          <input
-            type="search"
-            placeholder={variant === "admin" ? "Search settings, members…" : "Search products, SKUs, orders…"}
-            className="h-11 w-full rounded-full bg-surface-card pl-10 pr-4 text-body-sm text-ink placeholder:text-ash focus:bg-canvas"
-          />
-        </label>
+      <div className="ml-auto flex items-center justify-end gap-3">
         <div className="grid size-10 shrink-0 place-items-center">
           <UserButton />
         </div>

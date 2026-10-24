@@ -1,53 +1,44 @@
 import type { Metadata } from "next";
-import { Card, PageHeader, Placeholder, StatTile, WireTable } from "@/components/wireframe";
+import { BarChart3, FolderTree, Package, Truck, Users } from "lucide-react";
+import { Suspense } from "react";
+import { InventoryOverview } from "@/components/inventory/inventory-overview";
+import { LoadingBlock } from "@/components/ui/state-cards";
+import { QuickLinks } from "@/components/ui/quick-links";
+import { requirePageRole } from "@/server/authorization/session";
 
 export const metadata: Metadata = { title: "Admin overview" };
 
+/** Admin overview: shared inventory summary and alerts plus management links. ADMIN only. */
 export default function AdminOverviewPage() {
   return (
-    <>
-      <PageHeader
-        title="Workspace admin"
-        description="Manage your business, locations, team, and how Ziggy operates."
-        primaryAction="Invite member"
+    <Suspense fallback={<LoadingBlock label="Loading overview" />}>
+      <AdminOverviewContent />
+    </Suspense>
+  );
+}
+
+async function AdminOverviewContent() {
+  const access = await requirePageRole("ADMIN");
+  return (
+    <div className="space-y-6">
+      <header>
+        <h1 className="text-heading-xl text-ink">Admin overview</h1>
+        <p className="mt-1 max-w-2xl text-body-md text-mute">
+          Manage {access.workspaceName}: the catalogue, who has access, and reports.
+        </p>
+      </header>
+
+      <QuickLinks
+        links={[
+          { label: "Products", href: "/products", icon: Package, description: "Add, edit, archive" },
+          { label: "Categories", href: "/categories", icon: FolderTree, description: "Group products" },
+          { label: "Suppliers", href: "/suppliers", icon: Truck, description: "Who you buy from" },
+          { label: "Team & roles", href: "/admin/team", icon: Users, description: "Grant and manage access" },
+          { label: "Reports", href: "/reports", icon: BarChart3, description: "Stock and movements, CSV" },
+        ]}
       />
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatTile label="Locations" hint="Branches & warehouses" />
-        <StatTile label="Team members" hint="Active" />
-        <StatTile label="Pending invitations" />
-        <StatTile label="Products" hint="Active in catalogue" />
-      </div>
-
-      <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-3">
-        <Card title="Setup checklist">
-          <ol className="space-y-3 text-body-sm text-body">
-            {[
-              "Complete workspace profile",
-              "Add branches and warehouses",
-              "Invite your team",
-              "Set up units and products",
-              "Record opening stock",
-            ].map((step, i) => (
-              <li key={step} className="flex items-center gap-3">
-                <span className="grid size-6 shrink-0 place-items-center rounded-full bg-secondary-bg text-caption font-bold text-ink">
-                  {i + 1}
-                </span>
-                {step}
-              </li>
-            ))}
-          </ol>
-        </Card>
-        <Card title="Recent admin activity" action="Audit history" className="xl:col-span-2">
-          <WireTable columns={["When", "Who", "Action", "Target"]} rows={5} />
-        </Card>
-      </div>
-
-      <div className="mt-6">
-        <Card title="Locations at a glance">
-          <Placeholder label="Branch & warehouse cards" hint="Name, type, stock value, low-stock count" height="h-32" />
-        </Card>
-      </div>
-    </>
+      <InventoryOverview access={access} />
+    </div>
   );
 }

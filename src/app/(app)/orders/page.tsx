@@ -1,3 +1,4 @@
+import { requirePageRole } from "@/server/authorization/session";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { FilterChips, PageHeader, StatTile, StatusPill } from "@/components/wireframe";
@@ -16,7 +17,8 @@ const rows: [string, "warning" | "neutral" | "success" | "danger"][] = [
 ];
 
 /** Orders placed by shoppers on the storefront (/shop/[store]). */
-export default function CustomerOrdersPage() {
+export default async function CustomerOrdersPage() {
+  await requirePageRole("ADMIN");
   return (
     <>
       <PageHeader

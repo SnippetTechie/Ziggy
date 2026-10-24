@@ -1,9 +1,11 @@
+import { requirePageRole } from "@/server/authorization/session";
 import type { Metadata } from "next";
 import { ListPage } from "@/components/wireframe";
 
 export const metadata: Metadata = { title: "Sales & issues" };
 
-export default function Page() {
+export default async function Page() {
+  await requirePageRole("STAFF");
   return (
     <ListPage
       title="Sales & issues"

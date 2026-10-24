@@ -1,3 +1,4 @@
+import { requirePageRole } from "@/server/authorization/session";
 import type { Metadata } from "next";
 import { Button, Card, PageHeader } from "@/components/wireframe";
 
@@ -12,7 +13,8 @@ const settings = [
   ["Costing method", "Moving weighted average, per product per location"],
 ];
 
-export default function PreferencesPage() {
+export default async function PreferencesPage() {
+  await requirePageRole("ADMIN");
   return (
     <>
       <PageHeader title="Operational preferences" description="Rules that govern how stock operations work in this workspace." />

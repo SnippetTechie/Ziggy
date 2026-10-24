@@ -1,9 +1,11 @@
+import { requirePageRole } from "@/server/authorization/session";
 import type { Metadata } from "next";
 import { Button, Card, PageHeader, Placeholder } from "@/components/wireframe";
 
 export const metadata: Metadata = { title: "Data & account" };
 
-export default function DataPage() {
+export default async function DataPage() {
+  await requirePageRole("ADMIN");
   return (
     <>
       <PageHeader title="Data & account" description="Export your data and manage the workspace account." />
