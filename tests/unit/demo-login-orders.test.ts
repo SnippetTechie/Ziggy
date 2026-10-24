@@ -3,6 +3,7 @@ import { AppError } from "../../src/server/errors";
 
 vi.mock("server-only", () => ({}));
 vi.mock("next/headers", () => ({ cookies: vi.fn() }));
+vi.mock("next/server", () => ({ connection: vi.fn() }));
 vi.mock("@/server/db", () => ({ db: {} }));
 vi.mock("@/server/db/schema", () => ({ locations: {}, members: {}, users: {} }));
 const requireRole = vi.fn();

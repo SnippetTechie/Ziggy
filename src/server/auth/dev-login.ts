@@ -1,6 +1,7 @@
 import "server-only";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
+import { connection } from "next/server";
 import { asc, eq, sql } from "drizzle-orm";
 import { cache } from "react";
 import { db } from "../db";
@@ -47,6 +48,7 @@ export function checkDemoLogin(username: string, password: string): DemoKey | nu
 }
 
 export async function devSessionKey(): Promise<DemoKey | null> {
+  await connection(); // request-time only: token expiry reads the clock (cacheComponents forbids that while prerendering)
   const raw = (await cookies()).get(DEV_COOKIE)?.value;
   return raw ? readToken(raw) : null;
 }
