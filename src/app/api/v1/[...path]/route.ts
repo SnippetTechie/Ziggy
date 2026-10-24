@@ -9,7 +9,9 @@ import { csv, minimumRole } from "@/modules/access/api-policy";
 import { landings } from "@/modules/access/policy";
 import { deleteCategory, productAction, saveCategory, saveProduct, saveSupplier, supplierAction } from "@/modules/products/service";
 import { postStock } from "@/modules/inventory/service";
-import { getProduct, listMovements, listProducts, summary } from "@/server/services/queries";
+import { getProduct, listMovements, listProducts, lowStockAlerts, summary } from "@/server/services/queries";
+import { formatLocalDateTime } from "@/modules/reports/format";
+import { workspaceTimezone } from "@/modules/reports/timezone";
 import { setMember, updateSettings } from "@/server/services/administration";
 
 const headers = { "Cache-Control": "private, no-store" };
@@ -67,11 +69,13 @@ async function handler(request: Request, context: Context) {
       data = await postStock(access, movementInput.parse(await body()), resource === "stock-in" ? "STOCK_IN" : "STOCK_OUT", keyInput.parse(request.headers.get("idempotency-key")));
     } else if (resource === "stock-movements" && !id && read) data = await listMovements(access, query);
     else if (resource === "dashboard" && id === "summary" && !action && read) data = await summary(access);
-    else if (resource === "alerts" && id === "low-stock" && !action && read) data = await listProducts(access, { ...query, stock: "low" });
+    else if (resource === "alerts" && id === "low-stock" && !action && read) data = await lowStockAlerts(access, query);
     else if (resource === "reports" && ["stock-summary", "movements"].includes(id) && !action && read) {
       const { format, ...filters } = query;
       ensure(!format || format === "csv", "INVALID_FORMAT", "Supported export format: csv.", 400);
       if (format === "csv") {
+        const [workspace] = await db.select({ settings: workspaces.settings }).from(workspaces).where(eq(workspaces.id, access.workspaceId));
+        const timezone = workspaceTimezone(workspace?.settings);
         const rows: unknown[][] = [];
         let cursor: string | null = null;
         do {
@@ -80,11 +84,11 @@ async function handler(request: Request, context: Context) {
             rows.push(...page.items.map(row => [row.name, row.sku, row.category, row.unitLabel, row.quantity, row.stockStatus])); cursor = page.nextCursor;
           } else {
             const page = await listMovements(access, { ...filters, limit: "200", ...(cursor ? { cursor } : {}) });
-            rows.push(...page.items.map(row => [row.createdAt, row.productName, row.sku, row.movementType, row.reasonCode, row.quantity, row.balanceAfter, row.actor, row.reference])); cursor = page.nextCursor;
+            rows.push(...page.items.map(row => [formatLocalDateTime(row.occurredAt.toISOString(), timezone), row.occurredAt.toISOString(), row.productName, row.sku, row.movementType, row.reasonCode, row.quantity, row.balanceAfter, row.actor, row.reference])); cursor = page.nextCursor;
           }
           ensure(rows.length <= 10000, "EXPORT_TOO_LARGE", "Narrow the filters to export up to 10,000 records.", 422);
         } while (cursor);
-        return new Response(csv(id === "stock-summary" ? ["Product", "SKU", "Category", "Unit", "Quantity", "Status"] : ["Date", "Product", "SKU", "Type", "Reason", "Quantity", "Balance", "Actor", "Reference"], rows), { headers: { ...headers, "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": `attachment; filename="ziggy-${id}.csv"` } });
+        return new Response(csv(id === "stock-summary" ? ["Product", "SKU", "Category", "Unit", "Quantity", "Status"] : [`Date/time (${timezone})`, "Date/time (UTC)", "Product", "SKU", "Type", "Reason", "Quantity", "Balance", "Actor", "Reference"], rows), { headers: { ...headers, "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": `attachment; filename="ziggy-${id}.csv"` } });
       }
       data = id === "stock-summary" ? await listProducts(access, filters) : await listMovements(access, filters);
     } else if (resource === "members" && !action) {
